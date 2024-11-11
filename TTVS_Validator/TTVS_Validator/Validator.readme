@@ -1,0 +1,6 @@
+Here you can download a zip file containing the validator source code (please note that this is a mavenOpens in a new window project, to compile you may need to install maven on your pc). In the zipper file you'll find also a jar file executable from command line, if you want to run the jar file you'll have to:
+1) Open cmd (Windows) or terminal (Mac and Linux) on your pc.
+2) Go to the folder where the jar file is contained.
+3) Execute the command "java -jar desktopValidator.jar file1.json file2.json" where file1 and file2 are the input and output json files.
+
+NOTE: to execute the jar file you must have at least java jdk 15 installed on your computer

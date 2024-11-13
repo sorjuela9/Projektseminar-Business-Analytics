@@ -86,7 +86,7 @@ class ElectricVehicle(Vehicle):
         return self.__minChargingTime
 
 
-vehicles = Vehicle.load_vehicles_from_json('Small_Input_S.json')
+#vehicles = Vehicle.load_vehicles_from_json('Small_Input_S.json')
 
-for v in vehicles:
-    print(f"Vehicle ID: {v.getID()}, Type: {v.getType()}, Usage Cost: {v.getUsageCost()}")
+#for v in vehicles:
+ #   print(f"Vehicle ID: {v.getID()}, Type: {v.getType()}, Usage Cost: {v.getUsageCost()}")

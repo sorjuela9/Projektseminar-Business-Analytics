@@ -1,11 +1,15 @@
 import json
 from pulp import LpProblem, LpVariable, lpSum, LpMinimize, LpStatus
 from Vehicle import Vehicle
+import os
 
 # Load the JSON data and create vehicle instances
-with open("Small_Input_S.json", 'r') as f:
+print(os.getcwd())
+
+with open("Basismodell/Small_Input_S.json", 'r') as f:
     data = json.load(f)
-vehicles = Vehicle.load_vehicles_from_json('Small_Input_S.json')
+vehicles = Vehicle.load_vehicles_from_json('Basismodell/Small_Input_S.json')
+
 max_vehicles = len(vehicles)
 vehicle_ids = range(max_vehicles)
 

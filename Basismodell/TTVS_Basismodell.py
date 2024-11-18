@@ -3,7 +3,7 @@ from pulp import LpProblem, LpVariable, lpSum, LpMinimize, LpStatus
 from Vehicle import Vehicle
 
 # Load the JSON data and create vehicle instances
-with open('Small_Input_S.json', 'r') as f:
+with open("Small_Input_S.json", 'r') as f:
     data = json.load(f)
 vehicles = Vehicle.load_vehicles_from_json('Small_Input_S.json')
 max_vehicles = len(vehicles)

@@ -165,15 +165,16 @@ class STTVS_Solve:
                 trip_id = trip.getID()
 
                 # If a trip is assigned to a vehicle, it is considered covered
-                self.__model += self.__x[trip_id] == pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in vehicles), \
+                self.__model += self.__x[trip_id] == pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet), \
                             f"Link_x_z_{trip_id}"
 
         # 8. Ensure a vehicle is marked as used if it is assigned to at least one trip
+        num_trips = sum(len(direction.getTrips()) for direction in directions)
         for vehicle in fleet:
             vehicle_id = vehicle.getID()
 
             self.__model += pulp.lpSum(self.__z[trip.getID(), vehicle_id] for direction in directions for trip in direction.getTrips()) <= \
-                            len(directions) * self.__y[vehicle_id], \
+                            num_trips * self.__y[vehicle_id], \
                             f"VehicleUsage_{vehicle_id}"
                     
                   
@@ -193,16 +194,23 @@ class STTVS_Solve:
 
     def solve(self):
         self.__model.solve()
-
+        directions = self.__sttvs.getDirections() 
         # Check if an optimal solution has been found
         if pulp.LpStatus[self.__model.status] == 'Optimal':
             print("Optimal solution found!")
-
+            print("Objective value:", self.__model.objective.value())
             # Output the covered trips
-            covered_trips = [trip_id for trip_id, var in self.__x.items() if var.value() == 1]
+            covered_trips = []
+            for direction in directions:
+                for trip in direction.getTrips():
+                    trip_id = trip.getID()
+                    if self.__x[trip_id].value() == 1:  # If the trip is covered
+                        covered_trips.append(trip_id)
+
             print(f"Number of covered trips: {len(covered_trips)}")
 
-            uncovered_trips = [trip_id for trip_id, var in self.__x.items() if var.value() == 0]
+            uncovered_trips = [trip.getID() for direction in directions for trip in direction.getTrips() if self.__x[trip.getID()].value() == 0]
+    
             if uncovered_trips:
                 print("Uncovered trips:", uncovered_trips)
             else:

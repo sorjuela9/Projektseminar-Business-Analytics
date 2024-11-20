@@ -12,7 +12,7 @@ class Vehicle:
         return self.__id
 
     def getType(self):
-        return self.__typ
+        return self.__type
 
     def getUsageCost(self):
         return self.__usageCost

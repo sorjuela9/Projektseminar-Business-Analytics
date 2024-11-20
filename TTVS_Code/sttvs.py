@@ -132,7 +132,7 @@ if __name__ == '__main__':
     #if len(sys.argv) < 2:
     #    print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
     #    exit(0)
-    filename ='Small_Input_S.json'
+    filename ='TTVS_Instances/Small_Input_S.json'
     #filename = sys.argv[1]
 
     problem = parse(filename)

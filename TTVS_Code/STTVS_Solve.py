@@ -97,6 +97,7 @@ class STTVS_Solve:
     def generateConstraints(self):
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
+        fleet = self.__sttvs.getFleet()
         # Ensure that each trip marked as initial or final is assigned to a vehicle
         for direction in directions:
             for trip in direction.getTrips():
@@ -168,7 +169,7 @@ class STTVS_Solve:
                             f"Link_x_z_{trip_id}"
 
         # 8. Ensure a vehicle is marked as used if it is assigned to at least one trip
-        for vehicle in vehicles:
+        for vehicle in fleet:
             vehicle_id = vehicle.getID()
 
             self.__model += pulp.lpSum(self.__z[trip.getID(), vehicle_id] for direction in directions for trip in direction.getTrips()) <= \
@@ -182,10 +183,10 @@ class STTVS_Solve:
                 trip_id = trip.getID()
 
                 # Each trip must be assigned to one and only one vehicle
-                self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in vehicles) == 1, \
+                self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet) == 1, \
                             f"TripCoverage_{trip_id}"
         # Ensure at least one vehicle is used
-        self.__model += pulp.lpSum(self.__y[vehicle.getID()] for vehicle in vehicles) >= 1, \
+        self.__model += pulp.lpSum(self.__y[vehicle.getID()] for vehicle in fleet) >= 1, \
                         "AtLeastOneVehicleUsed"
 
         print("TODO")

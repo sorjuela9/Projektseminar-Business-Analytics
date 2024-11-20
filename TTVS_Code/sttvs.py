@@ -14,6 +14,8 @@ from Vehicle import CombustionVehicle, ElectricVehicle
 from SeniorTTVS import SeniorTTVS
 from STTVS_Solve import STTVS_Solve
 
+
+
 def parse(filename):
 
     with open(filename, "r") as f_in:
@@ -127,11 +129,11 @@ def parse(filename):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) < 2:
-        print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
-        exit(0)
-
-    filename = sys.argv[1]
+    #if len(sys.argv) < 2:
+    #    print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
+    #    exit(0)
+    filename ='Small_Input_S.json'
+    #filename = sys.argv[1]
 
     problem = parse(filename)
 
@@ -139,6 +141,10 @@ if __name__ == '__main__':
 
     solver.generateVariables()
 
+    solver.generateObjectiveFunction()
+
     solver.generateConstraints()
+
+    
 
     solver.solve()

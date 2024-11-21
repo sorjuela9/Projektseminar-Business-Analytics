@@ -137,15 +137,15 @@ class STTVS_Solve:
                     a_i = trip_i.getStartTime()  # Start time of trip i
 
                     # Identify the time window for trip_i
-                    time_window_index = next(
+                    tw = next(
                         (idx for idx in range(len(tH) - 1) if tH[idx] <= a_i < tH[idx + 1]),
                         None
                     )
-                    if time_window_index is None:
+                    if tw is None:
                         raise ValueError(f"Trip {trip_i.getID()} has a start time outside defined time horizons.")
 
                     # Get the maximum headway for the time window
-                    max_headway = direction.getMaxHeadway(time_window_index)
+                    max_headway = direction.getMaxHeadway(tw)
 
                     # Find all trips j such that a(j) - a(i) <= max_headway
                     related_trips = [

@@ -98,20 +98,19 @@ class STTVS_Solve:
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
         fleet = self.__sttvs.getFleet()
-        # Ensure that each trip marked as initial or final is assigned to a vehicle
+        # 1. Ensure the first trip of each schedule is an initial trip
         for direction in directions:
-            for trip in direction.getTrips():
-                trip_id = trip.getID()
+            initial_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "initial"]
+            self.__model += pulp.lpSum(
+                self.__x[trip.getID()] for trip in initial_trips
+            ) == 1, f"FirstTrip_Schedule_{direction}"
 
-                if trip.getInitialFinal() == "initial":
-                # 1. Initial trip constraint: must be assigned to exactly one vehicle
-                    self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in vehicles) == 1, \
-                            f"InitialTrip_{trip_id}"
-
-                elif trip.getInitialFinal() == "final":
-                # 2. Final trip constraint: must be assigned to exactly one vehicle
-                    self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in vehicles) == 1, \
-                            f"FinalTrip_{trip_id}"
+        #2.  Ensure the last trip of each schedule is a final trip
+        for direction in directions:
+            final_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "final"]
+            self.__model += pulp.lpSum(
+                self.__x[trip.getID()] for trip in final_trips
+            ) == 1, f"LastTrip_Schedule_{direction}"
 
         # 3. Constraint: -x[i] + Sum(x[j] for j in T_d \ T_ini if a(j) - a(i) <= Iij_max) >= 0
         tH = self.__sttvs.getTimeHorizon()
@@ -179,16 +178,16 @@ class STTVS_Solve:
                     
                   
         # Ensure every trip is covered by exactly one vehicle
-        for direction in directions:
-            for trip in direction.getTrips():
-                trip_id = trip.getID()
+        #for direction in directions:
+        #    for trip in direction.getTrips():
+        #        trip_id = trip.getID()
 
                 # Each trip must be assigned to one and only one vehicle
-                self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet) == 1, \
-                            f"TripCoverage_{trip_id}"
+        #        self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet) == 1, \
+        #                    f"TripCoverage_{trip_id}"
         # Ensure at least one vehicle is used
-        self.__model += pulp.lpSum(self.__y[vehicle.getID()] for vehicle in fleet) >= 1, \
-                        "AtLeastOneVehicleUsed"
+        #self.__model += pulp.lpSum(self.__y[vehicle.getID()] for vehicle in fleet) >= 1, \
+        #                "AtLeastOneVehicleUsed"
 
         print("TODO")
 
@@ -211,12 +210,33 @@ class STTVS_Solve:
 
             uncovered_trips = [trip.getID() for direction in directions for trip in direction.getTrips() if self.__x[trip.getID()].value() == 0]
     
-            if uncovered_trips:
-                print("Uncovered trips:", uncovered_trips)
-            else:
-                print("All trips are covered.")
+            #if uncovered_trips:
+            #    print("Uncovered trips:", uncovered_trips)
+            #else:
+            #    print("All trips are covered.")
 
             # Output the used vehicles
+
+            # Output the covered trips and their respective timetable
+            timetable = []
+
+            for direction in directions:
+                for trip in direction.getTrips():
+                    trip_id = trip.getID()
+
+                    # If the trip is covered, add it to the timetable
+                    if self.__x[trip_id].value() == 1:
+                    # Add the trip to the timetable, including its start and end times
+                        timetable.append(trip)
+
+            # Sort the timetable by start time
+            timetable_sorted = sorted(timetable, key=lambda trip: trip.getStartTime())
+
+            # Print the entire timetable
+            print("\nGenerated Timetable:")
+            for trip in timetable_sorted:
+                print(f"  Trip ID: {trip.getID()}, Start: {trip.getStartTime()}, End: {trip.getEndTime()}")
+
             used_vehicles = [vehicle.getID() for vehicle in self.__sttvs.getFleet() 
                             if self.__y[vehicle.getID()].value() == 1]
             print("Used vehicles and their types:")

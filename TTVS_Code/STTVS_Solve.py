@@ -103,14 +103,14 @@ class STTVS_Solve:
             initial_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "initial"]
             self.__model += pulp.lpSum(
                 self.__x[trip.getID()] for trip in initial_trips
-            ) == 1, f"FirstTrip_Schedule_{direction}"
+            ) == 1, f"FirstTrip_Schedule_{direction.getLine()}_{direction.getType()}"
 
         #2.  Ensure the last trip of each schedule is a final trip
         for direction in directions:
             final_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "final"]
             self.__model += pulp.lpSum(
                 self.__x[trip.getID()] for trip in final_trips
-            ) == 1, f"LastTrip_Schedule_{direction}"
+            ) == 1, f"LastTrip_Schedule_{direction.getLine()}_{direction.getType()}"
 
         # 3. Constraint: -x[i] + Sum(x[j] for j in T_d \ T_ini if a(j) - a(i) <= Iij_max) >= 0
         tH = self.__sttvs.getTimeHorizon()

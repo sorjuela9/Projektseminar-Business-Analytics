@@ -1,5 +1,5 @@
 import pulp
-
+import pandas as pd
 from SeniorTTVS import SeniorTTVS
 
 class STTVS_Solve:
@@ -98,33 +98,29 @@ class STTVS_Solve:
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
         fleet = self.__sttvs.getFleet()
-        # 1. Ensure the first trip of each schedule is an initial trip
+        tH = self.__sttvs.getTimeHorizon()
+
+        # 1. Ensure the first trip of each timetable is an initial trip
         for direction in directions:
             initial_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "initial"]
             self.__model += pulp.lpSum(
                 self.__x[trip.getID()] for trip in initial_trips
-            ) == 1, f"FirstTrip_Schedule_{direction.getLine()}_{direction.getType()}"
+            ) == 1, f"FirstTrip_timetable_{direction.getLine()}_{direction.getType()}"
 
-        #2.  Ensure the last trip of each schedule is a final trip
+        #2.  Ensure the last trip of each timetable is a final trip
         for direction in directions:
             final_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "final"]
             self.__model += pulp.lpSum(
                 self.__x[trip.getID()] for trip in final_trips
-            ) == 1, f"LastTrip_Schedule_{direction.getLine()}_{direction.getType()}"
+            ) == 1, f"LastTrip_timetable_{direction.getLine()}_{direction.getType()}"
 
         # 3. Constraint: -x[i] + Sum(x[j] for j in T_d \ T_ini if a(j) - a(i) <= Iij_max) >= 0
-        tH = self.__sttvs.getTimeHorizon()
-        #for i in range(1, len(tH)):
-        #    print("Time Window: [" + str(tH[i-1]) + "," + str(tH[i]) + "]")
-
-        dirs = self.__sttvs.getDirections()
-
-        for d in dirs:
+        for direction in directions:
             for i in range(1, len(tH)):
-                hw = d.getMaxHeadway(i-1) # maximum headway of time window i-1
-                print(d.getType() + "-direction of line " + str(d.getLine()) + " has maximum headway " + str(hw) + " for the " + str(i-1) + "-th time Window")
+                hw = direction.getMaxHeadway(i-1) # maximum headway of time window i-1
+                #print(d.getType() + "-direction of line " + str(d.getLine()) + " has maximum headway " + str(hw) + " for the " + str(i-1) + "-th time Window")
 
-            trips = d.getTrips()
+        #    trips = d.getTrips()
         #     for t in trips:
         #        print("Trip " + str(t.getID()) + " has start time " + str(t.getStartTime()) + " and end time " + str(t.getEndTime()) + ".")
         for direction in directions:
@@ -143,13 +139,10 @@ class STTVS_Solve:
                     if tw is None:
                         raise ValueError(f"Trip {trip_i.getID()} has a start time outside defined time horizons.")
 
-                    # Get the maximum headway for the time window
-                    max_headway = direction.getMaxHeadway(tw)
-
-                    # Find all trips j such that a(j) - a(i) <= max_headway
+                    # Find all trips j such that a(j) - a(i) <= hw
                     related_trips = [
                         trip_j for j, trip_j in enumerate(trips)
-                        if j != i and (trip_j.getStartTime() - a_i) <= max_headway
+                        if j != i and (trip_j.getStartTime() - a_i) <= hw #max_headway
                     ]
 
                     # Add constraint: -x_i + sum(x_j for related j) >= 0
@@ -189,60 +182,109 @@ class STTVS_Solve:
         #self.__model += pulp.lpSum(self.__y[vehicle.getID()] for vehicle in fleet) >= 1, \
         #                "AtLeastOneVehicleUsed"
 
-        print("TODO")
+        #print("TODO")
 
     def solve(self):
         self.__model.solve()
         directions = self.__sttvs.getDirections() 
+
+        # Function to convert seconds into HH:MM format
+        def seconds_to_time(seconds):
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            return f"{hours:02}:{minutes:02}"
+        
         # Check if an optimal solution has been found
         if pulp.LpStatus[self.__model.status] == 'Optimal':
             print("Optimal solution found!")
             print("Objective value:", self.__model.objective.value())
+
             # Output the covered trips
             covered_trips = []
             for direction in directions:
                 for trip in direction.getTrips():
                     trip_id = trip.getID()
                     if self.__x[trip_id].value() == 1:  # If the trip is covered
-                        covered_trips.append(trip_id)
+                        covered_trips.append(trip)
 
             print(f"Number of covered trips: {len(covered_trips)}")
 
             uncovered_trips = [trip.getID() for direction in directions for trip in direction.getTrips() if self.__x[trip.getID()].value() == 0]
-    
-            #if uncovered_trips:
-            #    print("Uncovered trips:", uncovered_trips)
-            #else:
-            #    print("All trips are covered.")
 
-            # Output the used vehicles
+            timetable_by_line_direction = {}
+            # Get time horizon and define start time (5:00 AM = 18000 seconds)
+            time_horizon = self.__sttvs.getTimeHorizon() 
+            start_of_day = 18000  # 5:00 AM in seconds
+            time_windows = [start_of_day] + time_horizon  # Start time + time horizon
+        
+            # Create a dictionary to store trips by time window
+            grouped_trips = {}
+        
+            # Loop through covered trips and assign them to time windows
+            for trip in covered_trips:
+                trip_id = trip.getID()
+                start_time = trip.getStartTime()  # Get start time in seconds
+                end_time = trip.getEndTime()  # Get end time in seconds
+            
+                # Find the appropriate time window for this trip
+                for i in range(len(time_windows) - 1):
+                    if time_windows[i] <= start_time < time_windows[i+1]:
+                        time_window_key = f"{seconds_to_time(time_windows[i])} - {seconds_to_time(time_windows[i+1])}"
+                        if time_window_key not in grouped_trips:
+                            grouped_trips[time_window_key] = {"trip_ids": [], "start_times": [], "end_times": []}
+                        grouped_trips[time_window_key]["trip_ids"].append(trip.getID())
+                        grouped_trips[time_window_key]["start_times"].append(seconds_to_time(start_time))
+                        grouped_trips[time_window_key]["end_times"].append(seconds_to_time(end_time))
+                        break
+        
+            # Output timetable and vehicles used for each line and direction
+            for direction in self.__sttvs.getDirections():
+                line_name = direction.getLine()
+                direction_type = direction.getType()
 
-            # Output the covered trips and their respective timetable
-            timetable = []
+                # Create a key for the timetable based on line and direction
+                timetable_key = f"Line {line_name}, Direction {direction_type}"
 
-            for direction in directions:
+                # Create a list to store the trips for this line and direction
+                if timetable_key not in timetable_by_line_direction:
+                    timetable_by_line_direction[timetable_key] = {"trips": [], "vehicles": set()}
+
+                # Loop through trips in this direction
                 for trip in direction.getTrips():
                     trip_id = trip.getID()
 
-                    # If the trip is covered, add it to the timetable
+                    # If the trip is covered (x=1), add it to the timetable for this line and direction
                     if self.__x[trip_id].value() == 1:
-                    # Add the trip to the timetable, including its start and end times
-                        timetable.append(trip)
+                        timetable_by_line_direction[timetable_key]["trips"].append(trip)
 
-            # Sort the timetable by start time
-            timetable_sorted = sorted(timetable, key=lambda trip: trip.getStartTime())
+                        # Check which vehicles are used for this trip
+                        for vehicle in self.__sttvs.getFleet():
+                            if self.__z[trip_id, vehicle.getID()].value() == 1:
+                                timetable_by_line_direction[timetable_key]["vehicles"].add(vehicle.getID())
+        
+            # Now, print the timetable for each line and direction
+            for timetable_key, data in timetable_by_line_direction.items():
+                # Sort the trips by start time
+                trips_sorted = sorted(data["trips"], key=lambda trip: trip.getStartTime())
 
-            # Print the entire timetable
-            print("\nGenerated Timetable:")
-            for trip in timetable_sorted:
-                print(f"  Trip ID: {trip.getID()}, Start: {trip.getStartTime()}, End: {trip.getEndTime()}")
+                print(f"\nGenerated Timetable for {timetable_key}:")
 
-            used_vehicles = [vehicle.getID() for vehicle in self.__sttvs.getFleet() 
-                            if self.__y[vehicle.getID()].value() == 1]
-            print("Used vehicles and their types:")
-            for vehicle in self.__sttvs.getFleet():
-                if self.__y[vehicle.getID()].value() == 1:
-                    print(f"Vehicle ID: {vehicle.getID()}, Type: {vehicle.getType()}")
+                # Print the sorted timetable for the line and direction
+                for trip in trips_sorted:
+                    # Get the time window for the trip
+                    start_time = trip.getStartTime()
+                    for i in range(len(time_windows) - 1):
+                        if time_windows[i] <= start_time < time_windows[i+1]:
+                            time_window = f"{seconds_to_time(time_windows[i])} - {seconds_to_time(time_windows[i+1])}"
+                            break
+
+                    # Print the trip information
+                    print(f"  Trip ID: {trip.getID()}, Time Window: {time_window}, Start: {seconds_to_time(start_time)}, End: {seconds_to_time(trip.getEndTime())}")
+            
+                # Print the vehicles used for this line and direction
+                print("  Vehicles used:")
+                for vehicle_id in data["vehicles"]:
+                    print(f"    Vehicle ID: {vehicle_id}")
         else:
             print("No optimal solution found.")
 

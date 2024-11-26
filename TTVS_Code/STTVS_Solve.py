@@ -93,12 +93,70 @@ class STTVS_Solve:
             # + co2_costs
         ), "Minimize total operating costs"
 
-    
+    # This function calculates the inline compatible pairs of trips based on the start and end nodes of each trip,
+    # and ensures that the time difference between the end of one trip and the start of another is within
+    # the allowed minimum and maximum stopping times at the respective nodes.
+    # It returns a list of trip pairs that can be assigned to the same vehicle based on these compatibility conditions.
+    '''
+    def calculate_in_line_compatibility(self, trips, directions, nodes):
+        compatible_pairs = []
+
+        for trip_i in trips:
+            # Find the Direction that the trip belongs to
+            direction_i = None
+            for direction in directions:
+                if trip_i in direction.getTrips():  
+                    direction_i = direction
+                    break
+
+            if direction_i is None:
+                continue  # Skip trip_i if no associated direction is found
+
+            end_node_i = direction_i.getEndNode()  # End node of trip_i
+
+            if end_node_i is None:
+                continue  # Skip trip_i if no end node found (raise ValueError?!)
+
+            for trip_j in trips:
+                if trip_i.getID() == trip_j.getID():
+                    continue  # Skip the same trip
+
+                # Find the Direction that trip_j belongs to
+                direction_j = None
+                for direction in directions:
+                    if trip_j in direction.getTrips():  
+                        direction_j = direction
+                        break
+
+                if direction_j is None:
+                    continue  # Skip trip_j if no associated direction is found
+
+                start_node_j = direction_j.getStartNode()  # Start node of trip_j
+
+                if start_node_j is None:
+                    continue  # Skip trip_j if no start node found
+
+                # Check in-line compatibility
+                if end_node_i == start_node_j:
+                    # Get stopping time limits at the end node of trip_i
+                    min_stopping_time = nodes[end_node_i].getMinMaxStoppingTimes(0)[0]
+                    max_stopping_time = nodes[end_node_i].getMinMaxStoppingTimes(0)[1]
+                    time_diff = trip_j.getStartTime() - trip_i.getEndTime()
+
+                    # Ensure time difference is within allowed bounds
+                    if min_stopping_time <= time_diff <= max_stopping_time:
+                        compatible_pairs.append((trip_i.getID(), trip_j.getID()))
+
+        return compatible_pairs
+   '''
+   
+
     def generateConstraints(self):
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
         fleet = self.__sttvs.getFleet()
         tH = self.__sttvs.getTimeHorizon()
+        nodes = self.__sttvs.getNodes()
 
         # 1. Ensure the first trip of each timetable is an initial trip
         for direction in directions:
@@ -159,6 +217,44 @@ class STTVS_Solve:
                 # If a trip is assigned to a vehicle, it is considered covered
                 self.__model += self.__x[trip_id] == pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet), \
                             f"Link_x_z_{trip_id}"
+
+
+        
+        '''
+        # 5. Ensure no vehicle covers two incompatible trips
+        for direction in directions:
+            trips = direction.getTrips()
+            compatible_pairs = self.calculate_in_line_compatibility(trips, directions, nodes)
+
+            for trip_i_id, trip_j_id in compatible_pairs:
+                for vehicle in fleet:
+                    vehicle_id = vehicle.getID()
+                    self.__model += (
+                        self.__z[trip_i_id, vehicle_id] + self.__z[trip_j_id, vehicle_id] <= 1,
+                        f"Constraint_5_{trip_i_id}_{trip_j_id}_Vehicle_{vehicle_id}"
+                    )
+
+        # 6. Ensure no vehicle covers two incompatible trips
+        for direction in directions:
+            trips = direction.getTrips()
+            compatible_pairs = self.calculate_in_line_compatibility(trips, directions, nodes)
+
+            all_trip_pairs = [
+                (trip_i.getID(), trip_j.getID())
+                for trip_i in trips for trip_j in trips if trip_i.getID() != trip_j.getID()
+            ]
+            incompatible_pairs = set(all_trip_pairs) - set(compatible_pairs)
+
+            for trip_i_id, trip_j_id in incompatible_pairs:
+                for vehicle in fleet:
+                    vehicle_id = vehicle.getID()
+                    self.__model += (
+                        self.__z[trip_i_id, vehicle_id] + self.__z[trip_j_id, vehicle_id] <= 1,
+                        f"Constraint_6_{trip_i_id}_{trip_j_id}_Vehicle_{vehicle_id}"
+                    )
+        '''
+        #def calculate_out_line_compatibility(trips, directions, nodes):
+        # 7.
 
         # 8. Ensure a vehicle is marked as used if it is assigned to at least one trip
         num_trips = sum(len(direction.getTrips()) for direction in directions)

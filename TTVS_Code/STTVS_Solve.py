@@ -185,9 +185,11 @@ class STTVS_Solve:
                 trips = direction.getTrips()  # Get all trips for the current direction
                 line_name = direction.getLine()
                 direction_type = direction.getType()
-
-                for i, trip_i in enumerate(trips):
-                    a_i = trip_i.getStartTime()  # Start time of trip i
+            
+                for trip_i in trips:
+                    #a_i = trip_i.getStartTime()  # Start time of trip i, hier arrivaltime....
+                    a_i = trip_i.getMainStopArrivalTime()
+                    
 
                     # Identify the time window for trip_i
                     tw = next(
@@ -199,8 +201,9 @@ class STTVS_Solve:
 
                     # Find all trips j such that a(j) - a(i) <= hw
                     related_trips = [
-                        trip_j for j, trip_j in enumerate(trips)
-                        if j != i and (trip_j.getStartTime() - a_i) <= hw #max_headway
+                        trip_j for trip_j in trips
+                        if trip_j.getID() != trip_i.getID() and ((trip_j.getMainStopArrivalTime()- a_i) <= hw) > 0 
+
                     ]
 
                     # Add constraint: -x_i + sum(x_j for related j) >= 0

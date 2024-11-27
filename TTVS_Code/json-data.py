@@ -7,9 +7,9 @@ def seconds_to_time(seconds):
     return str(timedelta(seconds=seconds))
 
 # Laden der JSON-Datei
-#file_path = 'TTVS_Instances/Small_Input_S.json'  
+file_path = 'TTVS_Instances/Small_Input_S.json'  
 #file_path = 'TTVS_Instances/Medium_Input_S.json'
-file_path = 'TTVS_Instances/Large_Input_S.json'
+#file_path = 'TTVS_Instances/Large_Input_S.json'
 
 with open(file_path, 'r') as file:
     data = json.load(file)

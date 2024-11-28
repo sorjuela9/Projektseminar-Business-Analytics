@@ -173,36 +173,34 @@ class STTVS_Solve:
             ) == 1, f"LastTrip_timetable_{direction.getLine()}_{direction.getType()}"
 
         # 3. Constraint: -x[i] + Sum(x[j] for j in T_d \ T_ini if a(j) - a(i) <= Iij_max) >= 0
-        for direction in directions:
-            for i in range(1, len(tH)):
-                hw = direction.getMaxHeadway(i-1) # maximum headway of time window i-1
-                #print(d.getType() + "-direction of line " + str(d.getLine()) + " has maximum headway " + str(hw) + " for the " + str(i-1) + "-th time Window")
-
-        #    trips = d.getTrips()
-        #     for t in trips:
-        #        print("Trip " + str(t.getID()) + " has start time " + str(t.getStartTime()) + " and end time " + str(t.getEndTime()) + ".")
+        
         for direction in directions:
                 trips = direction.getTrips()  # Get all trips for the current direction
                 line_name = direction.getLine()
                 direction_type = direction.getType()
-            
-                for trip_i in trips:
+
+                not_final_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() != "final"]
+                not_initial_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() != "initial"]
+
+                for trip_i in not_final_trips:
                     #a_i = trip_i.getStartTime()  # Start time of trip i, hier arrivaltime....
                     a_i = trip_i.getMainStopArrivalTime()
                     
 
                     # Identify the time window for trip_i
                     tw = next(
-                        (idx for idx in range(len(tH) - 1) if tH[idx] <= a_i < tH[idx + 1]),
+                        (idx for idx in range(len(tH) - 1) if tH[idx] < a_i <= tH[idx + 1]),
                         None
                     )
                     if tw is None:
                         raise ValueError(f"Trip {trip_i.getID()} has a start time outside defined time horizons.")
 
+                    hw = direction.getMaxHeadway(tw)
                     # Find all trips j such that a(j) - a(i) <= hw
                     related_trips = [
-                        trip_j for trip_j in trips
-                        if trip_j.getID() != trip_i.getID() and ((trip_j.getMainStopArrivalTime()- a_i) <= hw) > 0 
+                        
+                        trip_j for trip_j in not_initial_trips
+                        if trip_j.getID() != trip_i.getID() and 0 < (trip_j.getMainStopArrivalTime()- a_i) <= hw # and (trip_j.getMainStopArrivalTime()- a_i)> 0 
 
                     ]
 

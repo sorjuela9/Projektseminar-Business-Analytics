@@ -5,7 +5,6 @@
 import sys
 import os
 import json
-import pandas as pd
 
 from Node import Node
 from DeadheadArc import DeadheadArc
@@ -14,8 +13,6 @@ from Trip import Trip
 from Vehicle import CombustionVehicle, ElectricVehicle
 from SeniorTTVS import SeniorTTVS
 from STTVS_Solve import STTVS_Solve
-
-
 
 def parse(filename):
 
@@ -131,10 +128,10 @@ def parse(filename):
 if __name__ == '__main__':
 
     #if len(sys.argv) < 2:
-    #    print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
-    #    exit(0)
-    filename ='TTVS_Instances/Small_Input_S.json'
-    #filename = sys.argv[1]
+     #   print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
+      #  exit(0)
+
+    filename = "Small_Input_S.json"#sys.argv[1]
 
     problem = parse(filename)
 
@@ -142,10 +139,14 @@ if __name__ == '__main__':
 
     solver.generateVariables()
 
-    solver.generateObjectiveFunction()
-
     solver.generateConstraints()
 
-    
+    solver.printConstraints() #Print constraints
+
+    solver.writeLPFile("model.lp")  # Write the model to a file for debugging
 
     solver.solve()
+
+    solver.printVariableValues()
+
+    solver.printModelInfo()

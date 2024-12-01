@@ -34,9 +34,9 @@ class STTVS_Solve:
     
         # Binary variable s_i_j_v: 1 if vehicle v goes directly from trip i to trip j, 0 otherwise
         self.__s = {
-            (i.getID(), j.getID(), vehicle.getID()): pulp.LpVariable(f"s_{i.getID()}_{j.getID()}_{vehicle.getID()}", cat="Binary")
-            for d in directions for i in d.getTrips() for j in d.getTrips()
-            if i != j for vehicle in fleet
+            (trip_i.getID(), trip_j.getID(), vehicle.getID()): pulp.LpVariable(f"s_{trip_i.getID()}_{trip_j.getID()}_{vehicle.getID()}", cat="Binary")
+            for d in directions for trip_i in d.getTrips() for trip_j in d.getTrips()
+            if trip_i != trip_j for vehicle in fleet
         }
     
         # Binary variable f_t_v: 1 if vehicle v starts with trip t, 0 otherwise
@@ -57,6 +57,9 @@ class STTVS_Solve:
 
     def generateObjectiveFunction(self):
         fleet = self.__sttvs.getFleet()
+        directions = self.__sttvs.getDirections() 
+        nodes = self.__sttvs.getNodes()
+        
 
         # Vehicle usage costs
         vehicle_costs = pulp.lpSum(
@@ -64,13 +67,17 @@ class STTVS_Solve:
             for vehicle in fleet
         )
 
-    
-    
         # Break costs
-        # break_costs = pulp.lpSum(
-        #     self.__s[i, j, vehicle.getID()] * self.__sttvs.getBreakCostCoefficient()
-        #     for (i, j) in self.__s.keys() for vehicle in fleet if vehicle.getID() == self.__s[i, j]
-        # )
+        break_costs = pulp.lpSum(
+            self.__s[trip_i.getID(), trip_j.getID(), vehicle.getID()] *
+            self.__sttvs.getBreakCostCoefficient() *
+            (trip_j.getStartTime() - trip_i.getEndTime() - nodes[trip_i.getEndNode()].getMinMaxStoppingTimes(0)[0])
+            for direction in directions
+            for trip_i, trip_j in self.calculate_in_line_compatibility(direction.getTrips(), directions, nodes)
+            for vehicle in fleet
+        )
+
+       
 
         # Deadhead costs
         # deadhead_costs = pulp.lpSum(
@@ -79,16 +86,18 @@ class STTVS_Solve:
         # )
 
         # CO2 costs (only for Combustion Vehicles)
-        # co2_costs = pulp.lpSum(
-        #     self.__z[trip_id, vehicle.getID()] * vehicle.getEmissionCoefficient()
-        #     for vehicle in fleet if isinstance(vehicle, CombustionVehicle)
-        #     for trip_id in {t for t, v in self.__z.keys() if v == vehicle.getID()}
-        # )
+        #co2_costs = pulp.lpSum(
+        #    (vehicle.getEmissionCoefficient() * (trip.getEndTime() - trip.getStartTime()) * self.__z[trip.getID(), vehicle.getID()]
+        #    if isinstance(vehicle, CombustionVehicle) else 0)
+        #    for vehicle in fleet
+        #    for trip in trips
+        #)
+        #es fehlen noch die co2 Kosten  mit f unf l
 
         # Define the objective function
         self.__model += (
             vehicle_costs 
-            # + break_costs 
+             + break_costs 
             # + deadhead_costs 
             # + co2_costs
         ), "Minimize total operating costs"
@@ -97,7 +106,7 @@ class STTVS_Solve:
     # and ensures that the time difference between the end of one trip and the start of another is within
     # the allowed minimum and maximum stopping times at the respective nodes.
     # It returns a list of trip pairs that can be assigned to the same vehicle based on these compatibility conditions.
-    '''
+    
     def calculate_in_line_compatibility(self, trips, directions, nodes):
         compatible_pairs = []
 
@@ -148,7 +157,7 @@ class STTVS_Solve:
                         compatible_pairs.append((trip_i.getID(), trip_j.getID()))
 
         return compatible_pairs
-   '''
+   #def calculate_out_line_compatibility(self, trips, directions, nodes):
    
 
     def generateConstraints(self):
@@ -157,6 +166,7 @@ class STTVS_Solve:
         fleet = self.__sttvs.getFleet()
         tH = self.__sttvs.getTimeHorizon()
         nodes = self.__sttvs.getNodes()
+        deadheadArcs = self.__sttvs.getDeadheadArcs()
 
         # 1. Ensure the first trip of each timetable is an initial trip
         for direction in directions:
@@ -188,28 +198,49 @@ class STTVS_Solve:
                     
 
                     # Identify the time window for trip_i
-                    tw = next(
+                    tw_trip_i = next(
                         (idx for idx in range(len(tH) - 1) if tH[idx] < a_i <= tH[idx + 1]),
                         None
                     )
-                    if tw is None:
+                    if tw_trip_i is None:
                         raise ValueError(f"Trip {trip_i.getID()} has a start time outside defined time horizons.")
 
-                    hw = direction.getMaxHeadway(tw)
-                    # Find all trips j such that a(j) - a(i) <= hw
-                    related_trips = [
-                        
-                        trip_j for trip_j in not_initial_trips
-                        if trip_j.getID() != trip_i.getID() and 0 < (trip_j.getMainStopArrivalTime()- a_i) <= hw # and (trip_j.getMainStopArrivalTime()- a_i)> 0 
+                    hw_trip_i = direction.getMaxHeadway(tw_trip_i)
 
-                    ]
+                    # Find all potential successor trips j
+                    related_trips = []
+                    for trip_j in not_initial_trips:
+                        if trip_j.getID() == trip_i.getID():
+                            continue
 
-                    # Add constraint: -x_i + sum(x_j for related j) >= 0
+                        a_j = trip_j.getMainStopArrivalTime()
+                        tw_trip_j = next(
+                            (idx for idx in range(len(tH) - 1) if tH[idx] < a_j <= tH[idx + 1]),
+                            None
+                        )
+
+                        if tw_trip_j is None:
+                            continue  # Skip trips outside defined time windows
+
+                        # Calculate the maximum headway between trip_i and trip_j
+                        if tw_trip_j == tw_trip_i:
+                            hw_trip_j = hw_trip_i
+                        elif tw_trip_j == tw_trip_i + 1:
+                            hw_next = direction.getMaxHeadway(tw_trip_j)
+                            hw_trip_j = max(hw_trip_i, hw_next)
+                        else:
+                            continue  # Ignore trips not in the current or next time window
+
+                        # Check if the time difference between trip_i and trip_j satisfies the constraint
+                        if 0 < (a_j - a_i) <= hw_trip_j:
+                            related_trips.append(trip_j)
+
+                    # Add constraint: -x[i] + Sum(x[j] for j in related_trips) >= 0
                     self.__model += (
                         -self.__x[trip_i.getID()] + pulp.lpSum(self.__x[trip_j.getID()] for trip_j in related_trips) >= 0,
                         f"MaxHeadwayConstraint_Line{line_name}_Dir{direction_type}_Trip{trip_i.getID()}"
                     )
-
+                    
         # 4. Link trip coverage (x) with vehicle assignment (z)
         for direction in directions:
             for trip in direction.getTrips():
@@ -221,8 +252,8 @@ class STTVS_Solve:
 
 
         
-        '''
-        # 5. Ensure no vehicle covers two incompatible trips
+        
+        # 5,6 Ensure no vehicle covers two incompatible trips
         for direction in directions:
             trips = direction.getTrips()
             compatible_pairs = self.calculate_in_line_compatibility(trips, directions, nodes)
@@ -234,30 +265,11 @@ class STTVS_Solve:
                         self.__z[trip_i_id, vehicle_id] + self.__z[trip_j_id, vehicle_id] <= 1,
                         f"Constraint_5_{trip_i_id}_{trip_j_id}_Vehicle_{vehicle_id}"
                     )
+        
+        
+        # 8.
 
-        # 6. Ensure no vehicle covers two incompatible trips
-        for direction in directions:
-            trips = direction.getTrips()
-            compatible_pairs = self.calculate_in_line_compatibility(trips, directions, nodes)
-
-            all_trip_pairs = [
-                (trip_i.getID(), trip_j.getID())
-                for trip_i in trips for trip_j in trips if trip_i.getID() != trip_j.getID()
-            ]
-            incompatible_pairs = set(all_trip_pairs) - set(compatible_pairs)
-
-            for trip_i_id, trip_j_id in incompatible_pairs:
-                for vehicle in fleet:
-                    vehicle_id = vehicle.getID()
-                    self.__model += (
-                        self.__z[trip_i_id, vehicle_id] + self.__z[trip_j_id, vehicle_id] <= 1,
-                        f"Constraint_6_{trip_i_id}_{trip_j_id}_Vehicle_{vehicle_id}"
-                    )
-        '''
-        #def calculate_out_line_compatibility(trips, directions, nodes):
-        # 7.
-
-        # 8. Ensure a vehicle is marked as used if it is assigned to at least one trip
+        # 9. Ensure a vehicle is marked as used if it is assigned to at least one trip
         num_trips = sum(len(direction.getTrips()) for direction in directions)
         for vehicle in fleet:
             vehicle_id = vehicle.getID()
@@ -265,8 +277,49 @@ class STTVS_Solve:
             self.__model += pulp.lpSum(self.__z[trip.getID(), vehicle_id] for direction in directions for trip in direction.getTrips()) <= \
                             num_trips * self.__y[vehicle_id], \
                             f"VehicleUsage_{vehicle_id}"
-                    
-                  
+
+
+        # sijv ∈ {0, 1} which is supposed to be equal to one if Trip j is the immediate successor of trip i run by vehicle v and supposed to be equal to zero otherwise.              
+        '''  
+        ---die def für outline compatibility fehlt noch----          
+        # For each trip `j` and each vehicle `v`, we define the constraint for f_{j,v}
+        for trip_j in trips:
+            for vehicle in fleet:
+        
+                # Determine the compatible trips for trip_j from the in-line and out-line compatibility
+                compatible_trips_in = self.calculate_in_line_compatibility(trip_j, trips, directions, nodes)
+                compatible_trips_out = self.calculate_out_line_compatibility(trip_j, trips, directions, nodes)
+        
+                # Union of the compatible trips (in-line and out-line compatible)
+                compatible_trips = set(compatible_trips_in).union(set(compatible_trips_out))
+
+                # The constraint for f_{j,v}: It indicates if vehicle `v` starts with trip `j`
+                # f_{j,v} = z_{j,v} - sum of s_{i,j,v} for all compatible trip `i` with `j` as the successor
+                prob += self.__f[(trip_j.getID(), vehicle.getID())] == (
+                    self.__z[(trip_j.getID(), vehicle.getID())] - 
+                    pulp.lpSum(self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())] 
+                            for trip_i in compatible_trips if trip_i != trip_j)
+                )
+
+        # Similarly, for each trip `i` and each vehicle `v`, we define the constraint for l_{i,v}
+        for trip_i in trips:
+            for vehicle in fleet:
+
+                # Determine the compatible trips for trip_i from the in-line and out-line compatibility
+                compatible_trips_in = self.calculate_in_line_compatibility(trip_i, trips, directions, nodes)
+                compatible_trips_out = self.calculate_out_line_compatibility(trip_i, trips, directions, nodes)
+
+                # Union of the compatible trips (in-line and out-line compatible)
+                compatible_trips = set(compatible_trips_in).union(set(compatible_trps_out))
+
+                # The constraint for l_{i,v}: It indicates if vehicle `v` ends with trip `i`
+                # l_{i,v} = z_{i,v} - sum of s_{i,j,v} for all compatible trip `j` with `i` as the predecessor
+                prob += self.__l[(trip_i.getID(), vehicle.getID())] == (
+                    self.__z[(trip_i.getID(), vehicle.getID())] - 
+                    pulp.lpSum(self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())] 
+                               for trip_j in compatible_trips if trip_j != trip_i)
+                )
+        '''  
         # Ensure every trip is covered by exactly one vehicle
         #for direction in directions:
         #    for trip in direction.getTrips():

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # Sven Mallach (2024)
-import pulp
+
 import sys
 import os
 import json
@@ -147,6 +147,6 @@ if __name__ == '__main__':
 
     solver.solve()
 
-    solver.printVariableValues()
+    #solver.printVariableValues()
 
-    solver.printModelInfo()
+    #solver.printModelInfo()

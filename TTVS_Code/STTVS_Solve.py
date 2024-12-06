@@ -40,9 +40,9 @@ class STTVS_Solve:
     
         # Binary variable s_i_j_v: 1 if vehicle v goes directly from trip i to trip j, 0 otherwise
         self.__s = {
-            (trip_i.getID(), trip_j.getID(), vehicle.getID()): pulp.LpVariable(f"s_{trip_i.getID()}_{trip_j.getID()}_{vehicle.getID()}", cat="Binary")
-            for d in directions for trip_i in d.getTrips() for trip_j in d.getTrips()
-            if trip_i != trip_j for vehicle in fleet
+            (i.getID(), j.getID(), vehicle.getID()): pulp.LpVariable(f"s_{i.getID()}_{j.getID()}_{vehicle.getID()}", cat="Binary")
+            for d in directions for i in d.getTrips() for j in d.getTrips()
+            if i != j for vehicle in fleet
         }
         
     
@@ -64,9 +64,6 @@ class STTVS_Solve:
 
     def generateObjectiveFunction(self):
         fleet = self.__sttvs.getFleet()
-        directions = self.__sttvs.getDirections() 
-        nodes = self.__sttvs.getNodes()
-        
 
         # Vehicle usage costs
         vehicle_costs = pulp.lpSum(
@@ -74,6 +71,8 @@ class STTVS_Solve:
             for vehicle in fleet
         )
 
+    
+    
         # Break costs
         #break_costs = pulp.lpSum(
         #    self.__s[trip_i.getID(), trip_j.getID(), vehicle.getID()] *
@@ -93,13 +92,11 @@ class STTVS_Solve:
         # )
 
         # CO2 costs (only for Combustion Vehicles)
-        #co2_costs = pulp.lpSum(
-        #    (vehicle.getEmissionCoefficient() * (trip.getEndTime() - trip.getStartTime()) * self.__z[trip.getID(), vehicle.getID()]
-        #    if isinstance(vehicle, CombustionVehicle) else 0)
-        #    for vehicle in fleet
-        #    for trip in trips
-        #)
-        #es fehlen noch die co2 Kosten  mit f unf l
+        # co2_costs = pulp.lpSum(
+        #     self.__z[trip_id, vehicle.getID()] * vehicle.getEmissionCoefficient()
+        #     for vehicle in fleet if isinstance(vehicle, CombustionVehicle)
+        #     for trip_id in {t for t, v in self.__z.keys() if v == vehicle.getID()}
+        # )
 
         # Define the objective function
         self.__model += (

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # Sven Mallach (2024)
-
+import pulp
 import sys
 import os
 import json
@@ -14,7 +14,7 @@ from Trip import Trip
 from Vehicle import CombustionVehicle, ElectricVehicle
 from SeniorTTVS import SeniorTTVS
 from STTVS_Solve import STTVS_Solve
-
+from pyscipopt import Model
 
 
 def parse(filename):

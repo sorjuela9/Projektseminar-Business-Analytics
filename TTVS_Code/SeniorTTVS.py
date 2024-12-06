@@ -31,3 +31,10 @@ class SeniorTTVS:
 
     def getFleet(self):
         return self.__fleet
+        
+    def getNodeByID(self, nr):
+        for node in self.__nodes:
+            if node.getID() == nr:
+                return node
+        return None
+

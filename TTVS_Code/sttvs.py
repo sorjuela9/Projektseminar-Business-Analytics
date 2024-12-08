@@ -131,7 +131,7 @@ if __name__ == '__main__':
      #   print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
       #  exit(0)
 
-    filename = "Small_Input_S.json"#sys.argv[1]
+    filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
 
     problem = parse(filename)
 
@@ -141,12 +141,14 @@ if __name__ == '__main__':
 
     solver.generateConstraints()
 
-    solver.printConstraints() #Print constraints
+    solver.generateObjectiveFunction()
+
+    #solver.printConstraints() #Print constraints
 
     solver.writeLPFile("model.lp")  # Write the model to a file for debugging
 
     solver.solve()
 
-    solver.printVariableValues()
+    #solver.printVariableValues()
 
-    solver.printModelInfo()
+    #solver.printModelInfo()

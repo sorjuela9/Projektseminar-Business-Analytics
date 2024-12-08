@@ -64,47 +64,104 @@ class STTVS_Solve:
 
     def generateObjectiveFunction(self):
         fleet = self.__sttvs.getFleet()
+        #node = self.__sttvs.getNodeByID(end_node_i)
+        directions = self.__sttvs.getDirections() 
+        vehicles = self.__sttvs.getFleet()
+        fleet = self.__sttvs.getFleet()
+        tH = self.__sttvs.getTimeHorizon()
+        nodes = self.__sttvs.getNodes()
+        deadhead_arcs = self.__sttvs.getDeadheadArcs()
+
 
         # Vehicle usage costs
         vehicle_costs = pulp.lpSum(
             vehicle.getUsageCost() * self.__y[vehicle.getID()]
             for vehicle in fleet
         )
-
-    
-    
+        for direction in directions:
+            final_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "final"]
         # Break costs
-        #break_costs = pulp.lpSum(
-        #    self.__s[trip_i.getID(), trip_j.getID(), vehicle.getID()] *
-        #    self.__sttvs.getBreakCostCoefficient() *
-        #    (trip_j.getStartTime() - trip_i.getEndTime() - nodes[trip_i.getEndNode()].getMinMaxStoppingTimes(0)[0])
-        #    for direction in directions
-        #    for trip_i, trip_j in self.calculate_in_line_compatibility(direction.getTrips(), directions, nodes)
-        #    for vehicle in fleet
-        #)
+        break_costs = pulp.lpSum(
+            (trip_j.getStartTime() - trip_i.getEndTime() - node.getMinMaxStoppingTimes()[0])
+            * self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())]
+            * self.__sttvs.getBreakCostCoefficient()
+            for direction_i in directions
+            for trip_i in direction_i.getTrips() if trip_i.getID() not in final_trips  
+            for direction_j in directions
+            for trip_j in self.calculate_in_line_compatibility(direction_j.getTrips(), directions,nodes).get(trip_i.getID(), [])
+            for node in self.__sttvs.getNodes()
+            for vehicle in fleet
+        )
 
-       
+        # Deadhead costs between trips
+        deadhead_costs_trips = pulp.lpSum(
+            (arc.getTravelTime() * vehicle.getPullInOutCost() * self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())])
+            for vehicle in fleet
+            for direction_i in directions
+            for trip_i in direction_i.getTrips() if trip_i.getID() not in final_trips  
+            for direction_j in directions
+            for trip_j in self.calculate_out_line_compatibility(direction_j.getTrips(), directions,nodes, deadhead_arcs).get(trip_i.getID(), []) # in welcher Richtung?
+            if direction_j.getStartNode() == direction_i.getEndNode() 
+        )
 
-        # Deadhead costs
-        # deadhead_costs = pulp.lpSum(
-        #     self.__s[i, j, vehicle.getID()] * vehicle.getPullInOutCost()
-        #     for vehicle in fleet for (i, j) in self.__s.keys() if vehicle.getID() == self.__s[i, j]
-        # )
+        # Deadhead costs final trips
+        deadhead_costs_final_trips = pulp.lpSum(
+            (arc.getTravelTime() * vehicle.getPullInOutCost() * self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())])
+            for vehicle in fleet
+            for direction_i in directions
+            for trip_i in final_trips  
+            for direction_j in directions
+            for trip_j in self.calculate_out_line_compatibility(direction_j.getTrips(), directions, nodes, deadhead_arcs).get(trip_i.getID(), [])
+            if direction_j.getStartNode() == direction_i.getEndNode() 
+        )
+        
+        # CO2 costs for trip durations
+        co2_trip_costs = pulp.lpSum(
+            # Emission cost per unit of time * trip duration * decision variable z_iv
+            vehicle.getEmissionCoefficient() * (trip.getEndTime() - trip.getStartTime()) * self.__z[(trip.getID(), vehicle.getID())]
+            for vehicle in fleet
+            for direction in directions
+            for trip in direction.getTrips()
+        )
 
-        # CO2 costs (only for Combustion Vehicles)
-        # co2_costs = pulp.lpSum(
-        #     self.__z[trip_id, vehicle.getID()] * vehicle.getEmissionCoefficient()
-        #     for vehicle in fleet if isinstance(vehicle, CombustionVehicle)
-        #     for trip_id in {t for t, v in self.__z.keys() if v == vehicle.getID()}
-        # )
+        # CO2 and Pull-In/Out costs for the starting node
+        co2_pio_start_costs = pulp.lpSum(
+            # (Emission cost + pull-in/out cost) * travel time from depot to starting node * decision variable f_iv
+            (vehicle.getEmissionCoefficient() + vehicle.getPullInOutCost()) 
+            * deadhead_arc.getTravelTimes(self.find_time_window(trip.getStartTime()))  # Determine correct time window based on trip's start time
+            * self.__f[(trip.getID(), vehicle.getID())]
+            for vehicle in fleet
+            for direction in directions
+            for trip in direction.getTrips()
+            for deadhead_arc in deadhead_arcs
+            if deadhead_arc.getTerminalNode() == direction.getStartNode()  # Match deadhead arc's terminal node with the trip's starting node
+        )
+
+        # CO2 and Pull-In/Out costs for the ending node
+        co2_pio_end_costs = pulp.lpSum(
+            # (Emission cost + pull-in/out cost) * travel time from ending node to depot * decision variable l_iv
+            (vehicle.getEmissionCoefficient() + vehicle.getPullInOutCost()) 
+            * deadhead_arc.getTravelTimes(self.find_time_window(trip.getEndTime()))  # Determine correct time window based on trip's end time
+            * self.__l[(trip.getID(), vehicle.getID())]
+            for vehicle in fleet
+            for direction in directions
+            for trip in direction.getTrips()
+            for deadhead_arc in deadhead_arcs
+            if deadhead_arc.getTerminalNode() == direction.getEndNode()  # Match deadhead arc's terminal node with the trip's ending node
+        )
+
 
         # Define the objective function
         self.__model += (
-            vehicle_costs 
-            # + break_costs 
-            # + deadhead_costs 
-            # + co2_costs
-        ), "Minimize total operating costs"
+            vehicle_costs +
+            break_costs +
+            deadhead_costs_trips +
+            deadhead_costs_first_last +
+            co2_trip_costs +
+            co2_pio_start_costs +
+            co2_pio_end_costs
+        ), "Minimize total costs"
+    
 
     
     def find_time_window(self, time):
@@ -255,6 +312,9 @@ class STTVS_Solve:
         link_x_z_count = 0
         incompatibility_count = 0
         vehicle_usage_count = 0
+        var_s = 0
+        var_f = 0
+        var_l = 0
 
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
@@ -373,14 +433,7 @@ class STTVS_Solve:
                             f"VehicleUsage_{vehicle_id}"
             vehicle_usage_count +=1
             
-        # Ausgabe der Gesamtzahl der Nebenbedingungen pro Abschnitt
-        print(f"Total constraints in section 1 (First trips): {first_trip_count}")
-        print(f"Total constraints in section 2 (Last trips): {last_trip_count}")
-        print(f"Total constraints in section 3 (Max Headway): {max_headway_count}")
-        print(f"Total constraints in section 4 (Link x-z): {link_x_z_count}")
-        print(f"Total constraints in section 9 (Incompatibilities): {incompatibility_count}")
-        print(f"Total constraints in section 10 (Vehicle usage): {vehicle_usage_count}")
-
+        
         # sijv ∈ {0, 1} which is supposed to be equal to one if Trip j is the immediate successor of trip i run by vehicle v and supposed to be equal to zero otherwise.              
         for trip_i in trips:
             for trip_j in trips:
@@ -397,6 +450,7 @@ class STTVS_Solve:
                             ),
                             f"Constraint_s_{trip_i.getID()}_{trip_j.getID()}_{vehicle.getID()}"
                         )
+                        var_s +=1
  
                  
         # For each trip `j` and each vehicle `v`, we define the constraint for f_{j,v}
@@ -413,6 +467,7 @@ class STTVS_Solve:
                 self.__model += self.__f[(trip_j.getID(), vehicle.getID())] == (
                     self.__z[(trip_j.getID(), vehicle.getID())] - sum_f
                 )
+                var_f +=1
 
        
 
@@ -430,24 +485,24 @@ class STTVS_Solve:
                 self.__model += self.__l[(trip_i.getID(), vehicle.getID())] == (
                     self.__z[(trip_i.getID(), vehicle.getID())] - sum_l
                 )
+                var_l +=1
 
-        # Ensure every trip is covered by exactly one vehicle
-        #for direction in directions:
-        #    for trip in direction.getTrips():
-        #        trip_id = trip.getID()
-
-                # Each trip must be assigned to one and only one vehicle
-        #        self.__model += pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet) == 1, \
-        #                    f"TripCoverage_{trip_id}"
-        # Ensure at least one vehicle is used
-        #self.__model += pulp.lpSum(self.__y[vehicle.getID()] for vehicle in fleet) >= 1, \
-        #                "AtLeastOneVehicleUsed"
-
+        # total constrains per section
+        print(f"Total constraints in section 1 (First trips): {first_trip_count}")
+        print(f"Total constraints in section 2 (Last trips): {last_trip_count}")
+        print(f"Total constraints in section 3 (Max Headway): {max_headway_count}")
+        print(f"Total constraints in section 4 (Link x-z): {link_x_z_count}")
+        print(f"Total constraints in section 9 (Incompatibilities): {incompatibility_count}")
+        print(f"Total constraints in section 10 (Vehicle usage): {vehicle_usage_count}")
+        print(f"Total constraints in section s : {var_s}")
+        print(f"Total constraints in section f : {var_f}")
+        print(f"Total constraints in section l : {var_l}")
+      
         
 
     def solve(self):
         
-        self.__model.solve(pulp.PULP_CBC_CMD(msg=True, timeLimit=900, threads=2))
+        self.__model.solve(pulp.PULP_CBC_CMD(msg=True, timeLimit= 1200, threads=2))
         directions = self.__sttvs.getDirections() 
 
         # Function to convert seconds into HH:MM format

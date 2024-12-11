@@ -25,5 +25,5 @@ class DeadheadArc:
         return self.__length
 
     # tw is the index of the time window of interest (starting from zero)
-    def getTravelTimes(self, tw):
+    def getTravelTime(self, tw):
         return self.__travelTimes[tw]

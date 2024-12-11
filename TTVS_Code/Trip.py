@@ -2,8 +2,9 @@
 
 class Trip:
 
-    def __init__(self, ID, sT, eT, mSAT, ell, initfin):
+    def __init__(self, ID, thedir, sT, eT, mSAT, ell, initfin):
         self.__id = ID
+        self.__dir = thedir
         self.__startTime = sT
         self.__endTime = eT
         self.__mainStopArrivalTime = mSAT
@@ -12,6 +13,9 @@ class Trip:
 
     def getID(self):
         return self.__id
+
+    def getDirection(self):
+        return self.__dir
 
     def getStartTime(self):
         return self.__startTime

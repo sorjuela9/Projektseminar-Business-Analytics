@@ -12,7 +12,7 @@ from Direction import Direction
 from Trip import Trip
 from Vehicle import CombustionVehicle, ElectricVehicle
 from SeniorTTVS import SeniorTTVS
-from STTVS_Solve import STTVS_Solve
+from STTVS_SolveGurobi import STTVS_Solve
 
 def parse(filename):
 
@@ -40,18 +40,18 @@ def parse(filename):
 
             nodeBTs = nodedict["breakingTimes"]
             for sT in nodeBTs:
-                minST = int(sT["stoppingTime"]["minStoppingTime"])
-                maxST = int(sT["stoppingTime"]["maxStoppingTime"])
+                minST = int (sT["stoppingTime"]["minStoppingTime"])
+                maxST = int (sT["stoppingTime"]["maxStoppingTime"])
                 thenode.addStoppingTime(minST, maxST)
 
             nodes.append(thenode)
 
         for arcset in data["deadheadArcs"]:
             arcdict = arcset["deadheadArc"]
-            arcID = int(arcdict["deadheadArcCode"])
-            arcTN = int(arcdict["terminalNode"][4:])
+            arcID = int (arcdict["deadheadArcCode"])
+            arcTN = int (arcdict["terminalNode"][4:])
             arcType = "in" if ("In" in arcdict["deadheadType"]) else "out"
-            arcLen = float(arcdict["arcLength"])
+            arcLen = float (arcdict["arcLength"])
 
             thearc = DeadheadArc(arcID, arcTN, arcType, arcLen)
 
@@ -63,9 +63,9 @@ def parse(filename):
 
         for dirset in data["directions"]:
             dirdict = dirset["direction"]
-            dirLine = int(dirdict["lineName"][4:])
-            dirSN = int(dirdict["startNode"][4:])
-            dirEN = int(dirdict["endNode"][4:])
+            dirLine = int (dirdict["lineName"][4:])
+            dirSN = int (dirdict["startNode"][4:])
+            dirEN = int (dirdict["endNode"][4:])
             dirType = "in" if ("in" in dirdict["directionType"]) else "out"
 
             thedir = Direction(dirLine, dirSN, dirEN, dirType)
@@ -85,7 +85,7 @@ def parse(filename):
                 tripLen = float(tripset["lengthTrip"])
                 tripIF = tripset["isInitialFinalTT"]
 
-                thetrip = Trip(tripID, tripST, tripET, tripMSAT, tripLen, tripIF)
+                thetrip = Trip(tripID, thedir, tripST, tripET, tripMSAT, tripLen, tripIF)
 
                 thedir.addTrip(thetrip)
 
@@ -102,7 +102,7 @@ def parse(filename):
                 pioc = float(vehicleset2["pullInOutCost"])
                 ec = float(vehicleset2["iceInfo"]["emissionCoefficient"])
 
-                for d in range(0, 4 * len(dirs)):
+                for d in range(0, 2):
                     cv = CombustionVehicle(vehicleid, "ICE", ucost, pioc, ec)
                     fleet.append(cv)
                     vehicleid = vehicleid + 1
@@ -113,6 +113,9 @@ def parse(filename):
                 auto = int(vehicleset2["electricInfo"]["vehicleAutonomy"])
                 minCT = int(vehicleset2["electricInfo"]["maxChargingTime"])
                 maxCT = int(vehicleset2["electricInfo"]["minChargingTime"])
+
+                if enum > len(dirs) - 2:
+                    enum = len(dirs) - 2
 
                 for d in range(0, enum):
                     ev = ElectricVehicle(vehicleid, "electric", ucost, pioc, auto, minCT, maxCT)
@@ -127,26 +130,26 @@ def parse(filename):
 
 if __name__ == '__main__':
 
-    filename = "/Users/annebrombach/Desktop/WS2425/Seminar/Projektseminar-Business-Analytics/TTVS_Instances/Small_Input_S.json"
+    #if len(sys.argv) < 2:
+     #   print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
+      #  exit(0)
+
+    filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
 
     problem = parse(filename)
 
-    # Initialize the Gurobi model
-    gurobi_model = Model("STTVS_Model")
-
-    # Solve the problem using Gurobi
     solver = STTVS_Solve(problem)
+    
+    solver.generateVariables()
 
-    # Generate variables and constraints
-    solver.generateVariables(gurobi_model)
-    solver.generateConstraints(gurobi_model)
+    solver.generateConstraints()
 
-    # Optional: Write the model to a file for debugging
-    gurobi_model.write("model.lp")
+    #solver.printConstraints() #Print constraints
 
-    # Optimize the model
-    gurobi_model.optimize()
+    solver.writeLPFile("model.lp")  # Write the model to a file for debugging
 
-    # Print the results
-    solver.printVariableValues(gurobi_model)
-    solver.printModelInfo(gurobi_model)
+    solver.solve()
+
+    solver.printVariableValues()
+
+    solver.printModelInfo()

@@ -134,7 +134,7 @@ if __name__ == '__main__':
      #   print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
       #  exit(0)
 
-    filename = "/Users/annebrombach/Desktop/WS2425/Seminar/Projektseminar-Business-Analytics/TTVS_Instances/Small_Input_S.json"#sys.argv[1]
+    filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
 
     problem = parse(filename)
 

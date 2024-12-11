@@ -67,3 +67,13 @@ df = pd.DataFrame(data, columns=['Bus', 'Start', 'Ziel', 'Abfahrtszeit'])
 print("\nFahrplanübersicht:")
 print(df)
 
+# Exportiere die Tabelle nach LaTeX
+latex_code = df.to_latex(index=False)
+
+# Speichere den LaTeX-Code in eine Datei
+with open('timetable.tex', 'w') as f:
+    f.write(latex_code)
+print("\nDie Tabelle wurde erfolgreich nach LaTeX exportiert! Siehe 'timetable.tex'.")
+
+
+

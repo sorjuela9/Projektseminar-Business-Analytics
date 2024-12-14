@@ -1,6 +1,8 @@
 import pulp
 import pandas as pd
 from SeniorTTVS import SeniorTTVS
+from Vehicle import CombustionVehicle, ElectricVehicle
+
 
 class STTVS_Solve:
 
@@ -38,81 +40,25 @@ class STTVS_Solve:
             for vehicle in fleet
         }
     
-        # Binary variable s_i_j_v: 1 if vehicle v goes directly from trip i to trip j, 0 otherwise
-        self.__s = {
-            (i.getID(), j.getID(), vehicle.getID()): pulp.LpVariable(f"s_{i.getID()}_{j.getID()}_{vehicle.getID()}", cat="Binary")
-            for d in directions for i in d.getTrips() for j in d.getTrips()
-            if i != j for vehicle in fleet
-        }
         
-    
-        # Binary variable f_t_v: 1 if vehicle v starts with trip t, 0 otherwise
-        self.__f = {
-            (trip.getID(), vehicle.getID()): pulp.LpVariable(f"f_{trip.getID()}_{vehicle.getID()}", cat="Binary")
-            for d in directions for trip in d.getTrips()
-            for vehicle in fleet
-        }
-    
-        # Binary variable l_t_v: 1 if vehicle v ends with trip t, 0 otherwise
-        self.__l = {
-            (trip.getID(), vehicle.getID()): pulp.LpVariable(f"l_{trip.getID()}_{vehicle.getID()}", cat="Binary")
-            for d in directions for trip in d.getTrips()
-            for vehicle in fleet
-        }
 
    
 
     def generateObjectiveFunction(self):
         fleet = self.__sttvs.getFleet()
-        #node = self.__sttvs.getNodeByID(end_node_i)
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
         fleet = self.__sttvs.getFleet()
         tH = self.__sttvs.getTimeHorizon()
         nodes = self.__sttvs.getNodes()
         deadhead_arcs = self.__sttvs.getDeadheadArcs()
+        combustionVehicles = self.__sttvs.getFleet()
 
 
         # Vehicle usage costs
         vehicle_costs = pulp.lpSum(
             vehicle.getUsageCost() * self.__y[vehicle.getID()]
             for vehicle in fleet
-        )
-        for direction in directions:
-            final_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "final"]
-        # Break costs
-        break_costs = pulp.lpSum(
-            (trip_j.getStartTime() - trip_i.getEndTime() - node.getMinMaxStoppingTimes()[0])
-            * self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())]
-            * self.__sttvs.getBreakCostCoefficient()
-            for direction_i in directions
-            for trip_i in direction_i.getTrips() if trip_i.getID() not in final_trips  
-            for direction_j in directions
-            for trip_j in self.calculate_in_line_compatibility(direction_j.getTrips(), directions,nodes).get(trip_i.getID(), [])
-            for node in self.__sttvs.getNodes()
-            for vehicle in fleet
-        )
-
-        # Deadhead costs between trips
-        deadhead_costs_trips = pulp.lpSum(
-            (arc.getTravelTime() * vehicle.getPullInOutCost() * self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())])
-            for vehicle in fleet
-            for direction_i in directions
-            for trip_i in direction_i.getTrips() if trip_i.getID() not in final_trips  
-            for direction_j in directions
-            for trip_j in self.calculate_out_line_compatibility(direction_j.getTrips(), directions,nodes, deadhead_arcs).get(trip_i.getID(), []) # in welcher Richtung?
-            if direction_j.getStartNode() == direction_i.getEndNode() 
-        )
-
-        # Deadhead costs final trips
-        deadhead_costs_final_trips = pulp.lpSum(
-            (arc.getTravelTime() * vehicle.getPullInOutCost() * self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())])
-            for vehicle in fleet
-            for direction_i in directions
-            for trip_i in final_trips  
-            for direction_j in directions
-            for trip_j in self.calculate_out_line_compatibility(direction_j.getTrips(), directions, nodes, deadhead_arcs).get(trip_i.getID(), [])
-            if direction_j.getStartNode() == direction_i.getEndNode() 
         )
         
         # CO2 costs for trip durations
@@ -122,44 +68,14 @@ class STTVS_Solve:
             for vehicle in fleet
             for direction in directions
             for trip in direction.getTrips()
+            if isinstance(vehicle, CombustionVehicle)
         )
-
-        # CO2 and Pull-In/Out costs for the starting node
-        co2_pio_start_costs = pulp.lpSum(
-            # (Emission cost + pull-in/out cost) * travel time from depot to starting node * decision variable f_iv
-            (vehicle.getEmissionCoefficient() + vehicle.getPullInOutCost()) 
-            * deadhead_arc.getTravelTimes(self.find_time_window(trip.getStartTime()))  # Determine correct time window based on trip's start time
-            * self.__f[(trip.getID(), vehicle.getID())]
-            for vehicle in fleet
-            for direction in directions
-            for trip in direction.getTrips()
-            for deadhead_arc in deadhead_arcs
-            if deadhead_arc.getTerminalNode() == direction.getStartNode()  # Match deadhead arc's terminal node with the trip's starting node
-        )
-
-        # CO2 and Pull-In/Out costs for the ending node
-        co2_pio_end_costs = pulp.lpSum(
-            # (Emission cost + pull-in/out cost) * travel time from ending node to depot * decision variable l_iv
-            (vehicle.getEmissionCoefficient() + vehicle.getPullInOutCost()) 
-            * deadhead_arc.getTravelTimes(self.find_time_window(trip.getEndTime()))  # Determine correct time window based on trip's end time
-            * self.__l[(trip.getID(), vehicle.getID())]
-            for vehicle in fleet
-            for direction in directions
-            for trip in direction.getTrips()
-            for deadhead_arc in deadhead_arcs
-            if deadhead_arc.getTerminalNode() == direction.getEndNode()  # Match deadhead arc's terminal node with the trip's ending node
-        )
-
 
         # Define the objective function
         self.__model += (
-            vehicle_costs +
-            break_costs +
-            deadhead_costs_trips +
-            deadhead_costs_first_last +
-            co2_trip_costs +
-            co2_pio_start_costs +
-            co2_pio_end_costs
+            vehicle_costs 
+            + co2_trip_costs 
+            
         ), "Minimize total costs"
     
 
@@ -180,56 +96,42 @@ class STTVS_Solve:
 
         
         return time_window_index
-    
+    '''
     def calculate_in_line_compatibility(self, trips, directions, nodes):
-   
-        in_line_compatible = {}
-        direction_map = {trip.getID(): direction for direction in directions for trip in direction.getTrips()}
+    
+        inline_compatible = {}
 
         for trip_i in trips:
-            compatible_trips = []
-            direction_i = direction_map[trip_i.getID()]
+            inline_compatible[trip_i.getID()] = []
+            direction_i = trip_i.getDirection()  
             end_node_i = direction_i.getEndNode()
-            arrival_time_i = trip_i.getMainStopArrivalTime()
-            time_window_idx_i = self.find_time_window(arrival_time_i)  # Get the time window index for trip i
+            end_time_i = trip_i.getEndTime()
+            time_window_idx_i = self.find_time_window(end_time_i)
 
             for trip_j in trips:
-                if trip_i.getID() == trip_j.getID():  # A trip cannot be its own successor
-                    continue
-                if trip_j.getInitialFinal() == "initial":  # Initial trips cannot be successors
+                if trip_i.getID() == trip_j.getID():
                     continue
 
-                direction_j = direction_map[trip_j.getID()]
-                if direction_i != direction_j:  # In-line requires the same direction
-                    continue
-
+                direction_j = trip_j.getDirection()  # Use direction information
                 start_node_j = direction_j.getStartNode()
-                if end_node_i == start_node_j:  # Check if end node of i matches start node of j
-                    arrival_time_j = trip_j.getMainStopArrivalTime()
-                    time_window_idx_j = self.find_time_window(arrival_time_j)  # Get the time window index for trip j
+                start_time_j = trip_j.getStartTime()
 
-                    # Check if the time windows are compatible
-                    if time_window_idx_j == time_window_idx_i or time_window_idx_j == time_window_idx_i + 1:
-                        # Get stopping times for the current time window
-                        node = self.__sttvs.getNodeByID(end_node_i)
-                        min_stop, max_stop = node.getMinMaxStoppingTimes(time_window_idx_i)
-                        time_diff = trip_j.getStartTime() - trip_i.getEndTime()
+                if end_node_i == start_node_j:
+                    min_stop = self.__sttvs.getNodeByID(end_node_i).getMinMaxStoppingTimes(time_window_idx_i)[0]
+                    time_diff = start_time_j - end_time_i
 
-                        if min_stop <= time_diff <= max_stop:
-                            compatible_trips.append(trip_j.getID())
+                    if time_diff >= min_stop:  
+                        inline_compatible[trip_i.getID()].append(trip_j.getID())
 
-            # Store all compatible trips for trip i
-            in_line_compatible[trip_i.getID()] = compatible_trips
-        return in_line_compatible
+        return inline_compatible
     
     def calculate_out_line_compatibility(self, trips, directions, nodes, deadhead_arcs):
     
-        out_line_compatible = {}
-        direction_map = {trip.getID(): direction for direction in directions for trip in direction.getTrips()}
-
+        outline_compatible = {}
+        
         for trip_i in trips:
             compatible_trips = []
-            direction_i = direction_map[trip_i.getID()]
+            direction_i = trip_i.getDirection()
             end_node_i = direction_i.getEndNode()
             arrival_time_i = trip_i.getMainStopArrivalTime()
             time_window_idx_i = self.find_time_window(arrival_time_i)  # Get the time window index for trip i
@@ -238,15 +140,9 @@ class STTVS_Solve:
                 # A trip cannot be its own successor
                 if trip_i.getID() == trip_j.getID():
                     continue
-                # Initial and final trips cannot be outline successors
-                if trip_j.getInitialFinal() in ["initial", "final"]:
-                    continue
 
-                direction_j = direction_map[trip_j.getID()]
-                # Out-line compatibility requires different directions
-                if direction_i == direction_j:
-                    continue
-
+                direction_j = trip_j.getDirection()
+                
                 start_node_j = direction_j.getStartNode()
                 if start_node_j and end_node_i:
                     arrival_time_j = trip_j.getMainStopArrivalTime()
@@ -282,23 +178,87 @@ class STTVS_Solve:
                         compatible_trips.append(trip_j.getID())
 
             # Store all compatible trips for trip i
-            out_line_compatible[trip_i.getID()] = compatible_trips
-        return out_line_compatible
-
+            outline_compatible[trip_i.getID()] = compatible_trips
+        return outline_compatible
+ 
+    
 
     def calculate_incompatible_potential_successors(self, trips, in_line_compatible, out_line_compatible):
-    
-        tips_dict = {}
+        incompatible_trips = {}
 
-        for trip in trips:
-            trip_id = trip.getID()
-            # Combine all compatible trips for trip i
-            all_compatible = set(in_line_compatible.get(trip_id, [])) | set(out_line_compatible.get(trip_id, []))
-            # Incompatible trips are those not in the compatible sets
-            tips_dict[trip_id] = [t.getID() for t in trips if t.getID() not in all_compatible and t.getID() != trip_id]
-        return tips_dict
-    
-    
+        for trip_i in trips:
+            trip_i_id = trip_i.getID()
+            direction_i = trip_i.getDirection()  # Use direction information
+            # Retrieve compatible trips
+            compatible = set(in_line_compatible.get(trip_i_id, [])) | set(out_line_compatible.get(trip_i_id, []))
+
+            # Incompatible trips: All trips that are not compatible and not trip_i itself
+            # Note: We check start time of j relative to start time of i (not end time) per the new model
+            incompatible_trips[trip_i_id] = [
+                trip_j.getID() for trip_j in trips
+                if trip_j.getID() != trip_i_id and trip_j.getID() not in compatible and
+                (trip_j.getStartTime() - trip_i.getStartTime() >= 0)
+            ]
+
+        return incompatible_trips
+    '''      
+    def calculate_incompatible_potential_successors(self, trips, directions, nodes, deadhead_arcs):
+        T_ips = {}
+
+        for trip_i in trips:
+            trip_i_id = trip_i.getID()
+            T_ips[trip_i_id] = []
+        
+            # Information of the current trip
+            direction_i = trip_i.getDirection()
+            end_node_i = direction_i.getEndNode()
+            end_time_i = trip_i.getEndTime()
+            start_time_i = trip_i.getStartTime()
+            tw_idx_i = self.find_time_window(end_time_i)
+
+            # Deadhead pull-In time for the endnode of i
+            pull_in_time = 0
+            for arc in deadhead_arcs:
+                if arc.getTerminalNode() == end_node_i and arc.getType() == "in":
+                    pull_in_time = arc.getTravelTimes(tw_idx_i)
+                    break
+
+            # Minimum stop time at the depot
+            depot_min_stop = self.__sttvs.getNodeByID(0).getMinMaxStoppingTimes(tw_idx_i)[0]
+
+            for trip_j in trips:
+                if trip_i_id == trip_j.getID():
+                    continue
+
+                # Information of the successor trip
+                start_node_j = trip_j.getDirection().getStartNode()
+                start_time_j = trip_j.getStartTime()
+                tw_idx_j = self.find_time_window(start_time_j)
+
+                # Deadhead Pull-Out time for the startnode of trip j
+                pull_out_time = 0
+                for arc in deadhead_arcs:
+                    if arc.getTerminalNode() == start_node_j and arc.getType() == "out":
+                        pull_out_time = arc.getTravelTimes(tw_idx_j)
+                        break
+
+                # Check condition: st(j) - st(i) >= 0
+                if start_time_j - start_time_i < 0:
+                    continue  # Überspringe diesen Trip, wenn er kein potenzieller Nachfolger ist
+
+                # Check T¹-condition: too early for inline-compatible
+                if end_node_i == start_node_j:
+                    min_stop = self.__sttvs.getNodeByID(end_node_i).getMinMaxStoppingTimes(tw_idx_i)[0]
+                    if start_time_j - end_time_i < min_stop:
+                        T_ips[trip_i_id].append(trip_j.getID())
+                        continue
+
+                # check T³-condition: too early for outline-compatible
+                if end_node_i != start_node_j:
+                    if start_time_j - end_time_i < pull_in_time + depot_min_stop + pull_out_time:
+                        T_ips[trip_i_id].append(trip_j.getID())
+
+        return T_ips
     
     
     
@@ -312,9 +272,7 @@ class STTVS_Solve:
         link_x_z_count = 0
         incompatibility_count = 0
         vehicle_usage_count = 0
-        var_s = 0
-        var_f = 0
-        var_l = 0
+       
 
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
@@ -404,6 +362,7 @@ class STTVS_Solve:
         # Calculate the incompatible successors for all trips
         in_line_compatible = self.calculate_in_line_compatibility(trips, directions, nodes)
         out_line_compatible = self.calculate_out_line_compatibility(trips, directions, nodes, deadhead_arcs)
+        #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
         incompatible_successors = self.calculate_incompatible_potential_successors(trips, in_line_compatible, out_line_compatible)
 
         # 9. Ensure that vehicles do not cover incompatible trips
@@ -434,59 +393,6 @@ class STTVS_Solve:
             vehicle_usage_count +=1
             
         
-        # sijv ∈ {0, 1} which is supposed to be equal to one if Trip j is the immediate successor of trip i run by vehicle v and supposed to be equal to zero otherwise.              
-        for trip_i in trips:
-            for trip_j in trips:
-                if trip_i.getID() != trip_j.getID() and trip_j.getID() not in incompatible_trip_ids:
-                    for vehicle in fleet:
-                        # Restriction for s_ijv
-                        self.__model += (
-                            self.__s[trip_i.getID(), trip_j.getID(), vehicle.getID()] >=
-                            self.__z[trip_i.getID(), vehicle.getID()] +
-                            self.__z[trip_j.getID(), vehicle.getID()] - 1
-                            - pulp.lpSum(
-                                self.__z[k.getID(), vehicle.getID()]
-                                for k in trips if trip_i.getEndTime() <= k.getStartTime() <= trip_j.getStartTime()
-                            ),
-                            f"Constraint_s_{trip_i.getID()}_{trip_j.getID()}_{vehicle.getID()}"
-                        )
-                        var_s +=1
- 
-                 
-        # For each trip `j` and each vehicle `v`, we define the constraint for f_{j,v}
-        for trip_j in trips:  # Iterate over all trips
-            for vehicle in fleet:  # Iterate over all vehicles
-                # Calculate valid sum by summing only over trips that are compatible (not in the incompatible IDs)
-                sum_f = pulp.lpSum(
-                    self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())]
-                    for trip_i in trips
-                    if trip_i.getID() not in incompatible_trip_ids and trip_i.getID() != trip_j.getID()
-                )
-
-                # Constraint to define f_{j,v}: Vehicle v ends with trip j
-                self.__model += self.__f[(trip_j.getID(), vehicle.getID())] == (
-                    self.__z[(trip_j.getID(), vehicle.getID())] - sum_f
-                )
-                var_f +=1
-
-       
-
-        # Similarly, for each trip `i` and each vehicle `v`, we define the constraint for l_{i,v}
-        for trip_i in trips:  # Iterate over all trips
-            for vehicle in fleet:  # Iterate over all vehicles
-                # Calculate valid sum by summing only over trips that are compatible as predecessors
-                sum_l = pulp.lpSum(
-                    self.__s[(trip_i.getID(), trip_j.getID(), vehicle.getID())]
-                    for trip_j in trips
-                    if trip_j.getID() not in incompatible_trip_ids and trip_j.getID() != trip_i.getID()
-                )
-
-                # Constraint to define l_{i,v}: Vehicle v starts with trip i
-                self.__model += self.__l[(trip_i.getID(), vehicle.getID())] == (
-                    self.__z[(trip_i.getID(), vehicle.getID())] - sum_l
-                )
-                var_l +=1
-
         # total constrains per section
         print(f"Total constraints in section 1 (First trips): {first_trip_count}")
         print(f"Total constraints in section 2 (Last trips): {last_trip_count}")
@@ -494,15 +400,13 @@ class STTVS_Solve:
         print(f"Total constraints in section 4 (Link x-z): {link_x_z_count}")
         print(f"Total constraints in section 9 (Incompatibilities): {incompatibility_count}")
         print(f"Total constraints in section 10 (Vehicle usage): {vehicle_usage_count}")
-        print(f"Total constraints in section s : {var_s}")
-        print(f"Total constraints in section f : {var_f}")
-        print(f"Total constraints in section l : {var_l}")
+        
       
         
 
     def solve(self):
         
-        self.__model.solve(pulp.PULP_CBC_CMD(msg=True, timeLimit= 1200, threads=2))
+        self.__model.solve(pulp.PULP_CBC_CMD(msg=True, threads=2))
         directions = self.__sttvs.getDirections() 
 
         # Function to convert seconds into HH:MM format

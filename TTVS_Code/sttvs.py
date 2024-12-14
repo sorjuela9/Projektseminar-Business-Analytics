@@ -85,7 +85,7 @@ def parse(filename):
                 tripLen = float(tripset["lengthTrip"])
                 tripIF = tripset["isInitialFinalTT"]
 
-                thetrip = Trip(tripID, tripST, tripET, tripMSAT, tripLen, tripIF)
+                thetrip = Trip(tripID, thedir, tripST, tripET, tripMSAT, tripLen, tripIF)
 
                 thedir.addTrip(thetrip)
 
@@ -102,7 +102,7 @@ def parse(filename):
                 pioc = float(vehicleset2["pullInOutCost"])
                 ec = float(vehicleset2["iceInfo"]["emissionCoefficient"])
 
-                for d in range(0, 4 * len(dirs)):
+                for d in range(0, 2):
                     cv = CombustionVehicle(vehicleid, "ICE", ucost, pioc, ec)
                     fleet.append(cv)
                     vehicleid = vehicleid + 1
@@ -114,6 +114,9 @@ def parse(filename):
                 minCT = int(vehicleset2["electricInfo"]["maxChargingTime"])
                 maxCT = int(vehicleset2["electricInfo"]["minChargingTime"])
 
+                if enum > len(dirs) - 2:
+                    enum = len(dirs) - 2
+                    
                 for d in range(0, enum):
                     ev = ElectricVehicle(vehicleid, "electric", ucost, pioc, auto, minCT, maxCT)
                     fleet.append(ev)
@@ -145,7 +148,7 @@ if __name__ == '__main__':
 
     #solver.printConstraints() #Print constraints
 
-    solver.writeLPFile("model.lp")  # Write the model to a file for debugging
+    #solver.writeLPFile("model.lp")  # Write the model to a file for debugging
 
     solver.solve()
 

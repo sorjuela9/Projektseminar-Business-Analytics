@@ -2,8 +2,8 @@ import pulp
 import pandas as pd
 from SeniorTTVS import SeniorTTVS
 from Vehicle import CombustionVehicle, ElectricVehicle
-
-
+from pulp import GUROBI
+from pulp import GUROBI_CMD
 class STTVS_Solve:
 
     def __init__(self, sttvs):
@@ -265,7 +265,7 @@ class STTVS_Solve:
         return T_ips
     
     
-    
+        
     
         
     def generateConstraints(self):
@@ -400,7 +400,8 @@ class STTVS_Solve:
                             num_trips * self.__y[vehicle_id], \
                             f"VehicleUsage_{vehicle_id}"
             vehicle_usage_count +=1
-            
+
+    
         
         # total constrains per section
         print(f"Total constraints in section 1 (First trips): {first_trip_count}")
@@ -409,13 +410,13 @@ class STTVS_Solve:
         print(f"Total constraints in section 4 (Link x-z): {link_x_z_count}")
         print(f"Total constraints in section 9 (Incompatibilities): {incompatibility_count}")
         print(f"Total constraints in section 10 (Vehicle usage): {vehicle_usage_count}")
-        
+    
       
         
 
     def solve(self):
         
-        self.__model.solve(pulp.PULP_CBC_CMD(msg=True, threads=2))
+        self.__model.solve(pulp.GUROBI(msg=True))
         directions = self.__sttvs.getDirections() 
 
         # Function to convert seconds into HH:MM format

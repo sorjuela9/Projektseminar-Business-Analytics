@@ -255,6 +255,8 @@ class STTVS_Solve:
         link_x_z_count = 0
         incompatibility_count = 0
         vehicle_usage_count = 0
+        vehicle_usage_count_11 = 0
+
 
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
@@ -372,7 +374,16 @@ class STTVS_Solve:
                             num_trips * self.__y[vehicle_id], \
                             f"VehicleUsage_{vehicle_id}"
             vehicle_usage_count +=1
-            
+
+        # 11. if a vehicle is used it must be assigned at least one trip
+        num_trips = sum(len(direction.getTrips()) for direction in directions) 
+        for vehicle in fleet:
+             vehicle_id = vehicle.getID()
+
+        self.__model += (-num_trips * self.__y[vehicle_id] + pulp.lpSum(self.__z[trip.getID(), vehicle_id] for direction in directions for trip in direction.getTrips()) <= 0,
+                         f"Constraint_11_Vehicle_{vehicle_id}")
+        vehicle_usage_count_11 += 1
+
         # Ausgabe der Gesamtzahl der Nebenbedingungen pro Abschnitt
         print(f"Total constraints in section 1 (First trips): {first_trip_count}")
         print(f"Total constraints in section 2 (Last trips): {last_trip_count}")
@@ -380,6 +391,7 @@ class STTVS_Solve:
         print(f"Total constraints in section 4 (Link x-z): {link_x_z_count}")
         print(f"Total constraints in section 9 (Incompatibilities): {incompatibility_count}")
         print(f"Total constraints in section 10 (Vehicle usage): {vehicle_usage_count}")
+        print(f"Total constraints in section 11 (Vehicle usage - constraint 11): {vehicle_usage_count_11}")
 
         # sijv ∈ {0, 1} which is supposed to be equal to one if Trip j is the immediate successor of trip i run by vehicle v and supposed to be equal to zero otherwise.              
         for trip_i in trips:

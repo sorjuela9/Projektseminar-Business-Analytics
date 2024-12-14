@@ -15,7 +15,8 @@ class STTVS_Solve:
         trips = [trip for direction in directions for trip in direction.getTrips()]  # Extract all trips
         nodes = self.__sttvs.getNodes()
         deadhead_arcs = self.__sttvs.getDeadheadArcs()
-        
+        vehicles = self.__sttvs.getVehicles()  # Eine Liste von Fahrzeugen
+ 
 
 
     
@@ -372,6 +373,15 @@ class STTVS_Solve:
                             num_trips * self.__y[vehicle_id], \
                             f"VehicleUsage_{vehicle_id}"
             vehicle_usage_count +=1
+
+        # 11. Add the constraint for vehicle usage to ensure consistency between y and z variables
+        num_trips = sum(len(direction.getTrips()) for direction in directions)  # Total number of trips in the timetable
+        for vehicle in fleet:
+             vehicle_id = vehicle.getID()
+
+        self.__model += (-num_trips * self.__y[vehicle_id] + pulp.lpSum(self.__z[trip.getID(), vehicle_id] for direction in directions for trip in direction.getTrips()) <= 0,
+                         f"Constraint_11_Vehicle_{vehicle_id}"
+    )
             
         # Ausgabe der Gesamtzahl der Nebenbedingungen pro Abschnitt
         print(f"Total constraints in section 1 (First trips): {first_trip_count}")

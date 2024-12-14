@@ -96,6 +96,8 @@ class STTVS_Solve:
 
         
         return time_window_index
+
+     # Version 1 for T^ips with two separate definitions for inline and outline compatibility:  
     '''
     def calculate_in_line_compatibility(self, trips, directions, nodes):
     
@@ -201,7 +203,9 @@ class STTVS_Solve:
             ]
 
         return incompatible_trips
-    '''      
+    '''    
+
+    #  Version 2 for T^ips with a single combined definition:
     def calculate_incompatible_potential_successors(self, trips, directions, nodes, deadhead_arcs):
         T_ips = {}
 
@@ -360,10 +364,15 @@ class STTVS_Solve:
         
        
         # Calculate the incompatible successors for all trips
-        in_line_compatible = self.calculate_in_line_compatibility(trips, directions, nodes)
-        out_line_compatible = self.calculate_out_line_compatibility(trips, directions, nodes, deadhead_arcs)
-        #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
-        incompatible_successors = self.calculate_incompatible_potential_successors(trips, in_line_compatible, out_line_compatible)
+
+        #Version 1 for T^ips needs:
+        #in_line_compatible = self.calculate_in_line_compatibility(trips, directions, nodes)
+        #out_line_compatible = self.calculate_out_line_compatibility(trips, directions, nodes, deadhead_arcs)
+        #incompatible_successors = self.calculate_incompatible_potential_successors(trips, in_line_compatible, out_line_compatible)
+
+        # Version 2 needs:
+        incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
+
 
         # 9. Ensure that vehicles do not cover incompatible trips
         for trip_i in trips:

@@ -42,8 +42,6 @@ class STTVS_Solve:
     
         
 
-   
-
     def generateObjectiveFunction(self):
         fleet = self.__sttvs.getFleet()
         directions = self.__sttvs.getDirections() 
@@ -416,7 +414,17 @@ class STTVS_Solve:
 
     def solve(self):
         
-        self.__model.solve(pulp.GUROBI(msg=True))
+        self.__model.solve(pulp.GUROBI_CMD(
+        options=[
+        "Threads=4",  # Use 4 threads (adjust according to your machine)
+        "Presolve=2",  # Aggressive presolve
+        "Cuts=2",  # Use aggressive cuts
+        "Heuristics=0.5",  # Use a balanced heuristic for faster feasible solutions
+        "MIPFocus=1",  # Focus on finding feasible solutions quickly
+        "TimeLimit=3600",  # Set a 1-hour time limit for large problems
+        "MIPGap=0.01"  # Accept solutions within 1% of optimality
+    ]
+))
         directions = self.__sttvs.getDirections() 
 
         # Function to convert seconds into HH:MM format

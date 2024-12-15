@@ -4,6 +4,9 @@ from SeniorTTVS import SeniorTTVS
 from Vehicle import CombustionVehicle, ElectricVehicle
 from pulp import GUROBI
 from pulp import GUROBI_CMD
+import matplotlib.pyplot as plt
+import networkx as nx
+
 class STTVS_Solve:
 
     def __init__(self, sttvs):
@@ -524,8 +527,73 @@ class STTVS_Solve:
                 print("  Vehicles used:")
                 for vehicle_id in data["vehicles"]:
                     print(f"    Vehicle ID: {vehicle_id}")
+            '''
+            def visualize_timetable(timetable_by_line_direction):
+                # Farben für die Fahrzeuge (kann noch erweitert werden)
+                vehicle_colors = {}
+                available_colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan']
+                color_index = 0
 
-            
+                # Initialisieren des Graphen
+                G = nx.DiGraph()
+
+                # Edges und Nodes aus timetable_by_line_direction extrahieren
+                edge_labels = {}
+                for timetable_key, data in timetable_by_line_direction.items():
+                    for trip in data["trips"]:
+                        start_node = trip.getStartStation()
+                        end_node = trip.getEndStation()
+                        start_time = trip.getStartTime()
+                        end_time = trip.getEndTime()
+                        trip_id = trip.getID()
+
+                        # Füge Haltestellen als Nodes hinzu
+                        G.add_node(start_node)
+                        G.add_node(end_node)
+
+                        # Füge die Fahrt als Edge hinzu
+                        G.add_edge(start_node, end_node)
+
+                        # Label der Kante: Zeit und Trip-ID
+                        edge_labels[(start_node, end_node)] = f"{trip_id}: {seconds_to_time(start_time)} - {seconds_to_time(end_time)}"
+
+                        # Farbcodierung für Fahrzeuge
+                        for vehicle_id in data["vehicles"]:
+                            if vehicle_id not in vehicle_colors:
+                                vehicle_colors[vehicle_id] = available_colors[color_index % len(available_colors)]
+                                color_index += 1
+
+                # Positionierung der Knoten
+                pos = nx.spring_layout(G)
+
+                # Zeichnen der Haltestellen (Nodes)
+                nx.draw_networkx_nodes(G, pos, node_color='lightgray', node_size=700)
+
+                # Zeichnen der Verbindungen (Edges) mit Farben für verschiedene Fahrzeuge
+                for vehicle_id, color in vehicle_colors.items():
+                    vehicle_edges = [
+                        (u, v) for u, v in G.edges if vehicle_id in timetable_by_line_direction[timetable_key]["vehicles"]
+                    ]
+                    nx.draw_networkx_edges(G, pos, edgelist=vehicle_edges, edge_color=color, width=2, label=vehicle_id)
+
+                # Beschriftung der Haltestellen (Nodes)
+                nx.draw_networkx_labels(G, pos, font_size=10, font_color="black")
+
+                # Beschriftung der Verbindungen (Edges)
+                nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='darkblue')
+
+                # Legende für Fahrzeuge
+                plt.legend(handles=[
+                    plt.Line2D([0], [0], color=color, lw=2, label=vehicle_id) for vehicle_id, color in vehicle_colors.items()
+                ], loc='upper left')
+
+                # Titel und Anzeige
+                plt.title("Fahrplanvisualisierung")
+                plt.show()
+
+            # Aufruf der Visualisierungsfunktion mit deinem Fahrplandatensatz
+            visualize_timetable(timetable_by_line_direction)
+        '''       
         else:
             print("No optimal solution found.")
 

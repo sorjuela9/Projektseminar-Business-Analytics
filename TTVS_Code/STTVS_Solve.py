@@ -1,11 +1,12 @@
-import pulp
+import pulp 
+from pulp import PULP_CBC_CMD
 import pandas as pd
 from SeniorTTVS import SeniorTTVS
 from Vehicle import CombustionVehicle, ElectricVehicle
-from pulp import GUROBI
-from pulp import GUROBI_CMD
-import matplotlib.pyplot as plt
-import networkx as nx
+#from pulp import GUROBI
+#from pulp import GUROBI_CMD
+#import matplotlib.pyplot as plt
+#import networkx as nx
 
 class STTVS_Solve:
 
@@ -417,17 +418,34 @@ class STTVS_Solve:
 
     def solve(self):
         
-        self.__model.solve(pulp.GUROBI_CMD(
-        options=[ #Hier kann man alles noch anpassen
-        "Threads=4",  # Use 4 threads 
-        "Presolve=2",  # Aggressive presolve
-        "Cuts=2",  # Use aggressive cuts
-        "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
-        "MIPFocus=1",  # Focus on finding feasible solutions quickly
-        "TimeLimit=3600",  # 1-hour time limit 
-        "MIPGap=0.01"  # Accept solutions within 1% of optimality
-    ]
-))
+        #self.__model.solve(pulp.GUROBI_CMD(
+        #options=[ #Hier kann man alles noch anpassen
+        #"Threads=4",  # Use 4 threads 
+        #"Presolve=2",  # Aggressive presolve
+        #"Cuts=2",  # Use aggressive cuts
+        #"Heuristics=0.5",  # balanced heuristic for faster feasible solutions
+        #"MIPFocus=1",  # Focus on finding feasible solutions quickly
+        #"TimeLimit=3600",  # 1-hour time limit 
+        #"MIPGap=0.01"  # Accept solutions within 1% of optimality
+    #]
+#))
+        
+        self.__model.solve(PULP_CBC_CMD(
+            msg=True,          
+            threads=4,         
+            timeLimit=3600,    
+            options=[
+                "ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
+                "preprocess",  # Schalte Vorverarbeitung ein
+                "strongcuts"   # Aktiviere aggressive Schnitte
+            ]
+        ))
+
+        
+
+
+
+
         directions = self.__sttvs.getDirections() 
 
         # Function to convert seconds into HH:MM format

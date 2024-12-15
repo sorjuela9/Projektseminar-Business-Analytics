@@ -96,7 +96,7 @@ class STTVS_Solve:
         return time_window_index
 
      # Version 1 for T^ips with two separate definitions for inline and outline compatibility:  
-    '''
+    
     def calculate_in_line_compatibility(self, trips, directions, nodes):
     
         inline_compatible = {}
@@ -261,7 +261,7 @@ class STTVS_Solve:
                         T_ips[trip_i_id].append(trip_j.getID())
 
         return T_ips
-    
+    '''
     
         
     
@@ -364,12 +364,12 @@ class STTVS_Solve:
         # Calculate the incompatible successors for all trips
 
         #Version 1 for T^ips needs:
-        #in_line_compatible = self.calculate_in_line_compatibility(trips, directions, nodes)
-        #out_line_compatible = self.calculate_out_line_compatibility(trips, directions, nodes, deadhead_arcs)
-        #incompatible_successors = self.calculate_incompatible_potential_successors(trips, in_line_compatible, out_line_compatible)
+        in_line_compatible = self.calculate_in_line_compatibility(trips, directions, nodes)
+        out_line_compatible = self.calculate_out_line_compatibility(trips, directions, nodes, deadhead_arcs)
+        incompatible_successors = self.calculate_incompatible_potential_successors(trips, in_line_compatible, out_line_compatible)
 
         # Version 2 needs:
-        incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
+        #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
 
 
         # 9. Ensure that vehicles do not cover incompatible trips
@@ -524,6 +524,8 @@ class STTVS_Solve:
                 print("  Vehicles used:")
                 for vehicle_id in data["vehicles"]:
                     print(f"    Vehicle ID: {vehicle_id}")
+
+            
         else:
             print("No optimal solution found.")
 

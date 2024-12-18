@@ -309,7 +309,7 @@ class STTVS_Solve:
                 self.__x[trip.getID()] for trip in final_trips
             ) == 1, f"LastTrip_timetable_{direction.getLine()}_{direction.getType()}"
             last_trip_count +=1
-
+        
         # 3. Constraint: -x[i] + Sum(x[j] for j in T_d \ T_ini if a(j) - a(i) <= Iij_max) >= 0
         #constraint_counter = 0
         
@@ -356,7 +356,7 @@ class STTVS_Solve:
                         f"MaxHeadwayConstraint_{trip_i.getID()}"
                     )
                     max_headway_count +=1
-                
+           
                     
         # 4. Link trip coverage (x) with vehicle assignment (z)
         for direction in directions:
@@ -380,7 +380,7 @@ class STTVS_Solve:
         # Version 2 needs:
         #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
 
-
+        '''
         # 9. Ensure that vehicles do not cover incompatible trips
         for trip_i in trips:
             trip_i_id = trip_i.getID()
@@ -397,7 +397,7 @@ class STTVS_Solve:
                         f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
                     )
                     incompatibility_count += 1
-        
+        '''
         # 10. Ensure a vehicle is marked as used if it is assigned to at least one trip
         num_trips = sum(len(direction.getTrips()) for direction in directions)
         for vehicle in fleet:
@@ -407,7 +407,7 @@ class STTVS_Solve:
                             num_trips * self.__y[vehicle_id], \
                             f"VehicleUsage_{vehicle_id}"
             vehicle_usage_count +=1
-
+        
     
         
         # total constrains per section
@@ -440,7 +440,7 @@ class STTVS_Solve:
         "Threads=4",  # Use 4 threads 
         "Presolve=2",  # Aggressive presolve
         "Cuts=2",  # Use aggressive cuts
-        #"Heuristics=0.5",  # balanced heuristic for faster feasible solutions
+        "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
         "MIPFocus=1",  # Focus on finding feasible solutions quickly
         "TimeLimit=3600",  # 1-hour time limit 
         "MIPGap=0.01"  # Accept solutions within 1% of optimality

@@ -165,7 +165,6 @@ if __name__ == '__main__':
 
     #solver.writeLPFile("model.lp")  # Write the model to a file for debugging
 
-    
     solver.solve()
     
 

@@ -1,10 +1,10 @@
 import pulp 
-from pulp import PULP_CBC_CMD
+#from pulp import PULP_CBC_CMD
 import pandas as pd
 from SeniorTTVS import SeniorTTVS
 from Vehicle import CombustionVehicle, ElectricVehicle
-#from pulp import GUROBI
-#from pulp import GUROBI_CMD
+from pulp import GUROBI
+from pulp import GUROBI_CMD
 #import matplotlib.pyplot as plt
 #import networkx as nx
 
@@ -50,11 +50,10 @@ class STTVS_Solve:
         fleet = self.__sttvs.getFleet()
         directions = self.__sttvs.getDirections() 
         vehicles = self.__sttvs.getFleet()
-        fleet = self.__sttvs.getFleet()
         tH = self.__sttvs.getTimeHorizon()
         nodes = self.__sttvs.getNodes()
         deadhead_arcs = self.__sttvs.getDeadheadArcs()
-        combustionVehicles = self.__sttvs.getFleet()
+        #combustionVehicles = self.__sttvs.getFleet()
 
 
         # Vehicle usage costs
@@ -108,6 +107,7 @@ class STTVS_Solve:
         for trip_i in trips:
             inline_compatible[trip_i.getID()] = []
             direction_i = trip_i.getDirection()  
+            line_i = direction_i.getLine()
             end_node_i = direction_i.getEndNode()
             end_time_i = trip_i.getEndTime()
             time_window_idx_i = self.find_time_window(end_time_i)
@@ -117,14 +117,15 @@ class STTVS_Solve:
                     continue
 
                 direction_j = trip_j.getDirection()  # Use direction information
+                line_j = direction_j.getLine()
                 start_node_j = direction_j.getStartNode()
                 start_time_j = trip_j.getStartTime()
 
                 if end_node_i == start_node_j:
-                    min_stop = self.__sttvs.getNodeByID(end_node_i).getMinMaxStoppingTimes(time_window_idx_i)[0]
+                    min_stop = self.__sttvs.getNodeByID(0).getMinMaxStoppingTimes(time_window_idx_i)[0]
                     time_diff = start_time_j - end_time_i
 
-                    if time_diff >= min_stop:  
+                    if time_diff >= min_stop:# and end_time_i <= start_time_j: 
                         inline_compatible[trip_i.getID()].append(trip_j.getID())
 
         return inline_compatible
@@ -137,8 +138,9 @@ class STTVS_Solve:
             compatible_trips = []
             direction_i = trip_i.getDirection()
             end_node_i = direction_i.getEndNode()
-            arrival_time_i = trip_i.getMainStopArrivalTime()
-            time_window_idx_i = self.find_time_window(arrival_time_i)  # Get the time window index for trip i
+            #arrival_time_i = trip_i.getMainStopArrivalTime()
+            #time_window_idx_i = self.find_time_window(arrival_time_i)  # Get the time window index for trip i
+            time_window_idx_i = self.find_time_window(trip_i.getEndTime())
 
             for trip_j in trips:
                 # A trip cannot be its own successor
@@ -146,11 +148,11 @@ class STTVS_Solve:
                     continue
 
                 direction_j = trip_j.getDirection()
-                
+             
                 start_node_j = direction_j.getStartNode()
                 if start_node_j and end_node_i:
                     arrival_time_j = trip_j.getMainStopArrivalTime()
-                    time_window_idx_j = self.find_time_window(arrival_time_j)  # Get the time window index for trip j
+                    time_window_idx_j = self.find_time_window(trip_j.getStartTime())  # Get the time window index for trip j
 
                     # Calculate Pull-In and Pull-Out times for deadhead arcs
                     pull_in_time = 0
@@ -168,11 +170,8 @@ class STTVS_Solve:
 
                     # Get minimum depot time
 
-                    node_i = self.__sttvs.getNodeByID(end_node_i) 
-                    if node_i:
-                        min_depot_time = node_i.getMinMaxStoppingTimes(time_window_idx_i)[0]
-                    else:
-                        continue  # If no valid node is found, skip
+                    min_depot_time = self.__sttvs.getNodeByID(0).getMinMaxStoppingTimes(time_window_idx_i)[0]
+                  
 
                     # Calculate the time difference between trips
                     time_diff = trip_j.getStartTime() - trip_i.getEndTime()
@@ -198,6 +197,8 @@ class STTVS_Solve:
 
             # Incompatible trips: All trips that are not compatible and not trip_i itself
             # Note: We check start time of j relative to start time of i (not end time) per the new model
+            
+
             incompatible_trips[trip_i_id] = [
                 trip_j.getID() for trip_j in trips
                 if trip_j.getID() != trip_i_id and trip_j.getID() not in compatible and
@@ -287,8 +288,7 @@ class STTVS_Solve:
         nodes = self.__sttvs.getNodes()
         deadhead_arcs = self.__sttvs.getDeadheadArcs()
 
-        for node_id in range(len(nodes)):  # Durch alle Knoten iterieren
-            node = self.__sttvs.getNodeByID(node_id)
+        
         # 1. Ensure the first trip of each timetable is an initial trip
         for direction in directions:
             initial_trips = [trip for trip in direction.getTrips() if trip.getInitialFinal() == "initial"]
@@ -374,24 +374,30 @@ class STTVS_Solve:
 
         # Version 2 needs:
         #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
-
+        for i, trip_i in enumerate(trips):
+                if i < 3:  # Nur die ersten 10 Trips ausgeben
+                    trip_i_id = trip_i.getID()
+                    incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
+                    print("Trip " + str(trip_i_id) + " has " + str(len(incompatible_trip_ids)) + " incompatible potential successor trips."+ str(incompatible_trip_ids))
+        
 
         # 9. Ensure that vehicles do not cover incompatible trips
-        for trip_i in trips:
-            trip_i_id = trip_i.getID()
-            incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
-            num_incompatible = len(incompatible_trip_ids)
+        for direction in directions:
+            for trip_i in direction.getTrips():
+                trip_i_id = trip_i.getID()
+                incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
+                num_incompatible = len(incompatible_trip_ids)
 
-            if num_incompatible > 0:  # Only add constraint if there are incompatible trips
-                for vehicle in vehicles:
-                    vehicle_id = vehicle.getID()
-                    # Add the aggregated constraint for vehicle v and trip i
-                    self.__model += (
-                        num_incompatible * self.__z[trip_i_id, vehicle_id] +
-                        pulp.lpSum(self.__z[trip_j_id, vehicle_id] for trip_j_id in incompatible_trip_ids) <= num_incompatible,
-                        f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
-                    )
-                    incompatibility_count += 1
+                if num_incompatible > 0:  # Only add constraint if there are incompatible trips
+                    for vehicle in vehicles:
+                        vehicle_id = vehicle.getID()
+                        # Add the aggregated constraint for vehicle v and trip i
+                        self.__model += (
+                            num_incompatible * self.__z[trip_i_id, vehicle_id] +
+                            pulp.lpSum(self.__z[trip_j_id, vehicle_id] for trip_j_id in incompatible_trip_ids) <= num_incompatible,
+                            f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
+                        )
+                        incompatibility_count += 1
         
         # 10. Ensure a vehicle is marked as used if it is assigned to at least one trip
         num_trips = sum(len(direction.getTrips()) for direction in directions)
@@ -403,7 +409,7 @@ class STTVS_Solve:
                             f"VehicleUsage_{vehicle_id}"
             vehicle_usage_count +=1
 
-    
+       
         
         # total constrains per section
         print(f"Total constraints in section 1 (First trips): {first_trip_count}")
@@ -428,24 +434,32 @@ class STTVS_Solve:
         #"TimeLimit=3600",  # 1-hour time limit 
         #"MIPGap=0.01"  # Accept solutions within 1% of optimality
     #]
-#))
-        
-        self.__model.solve(PULP_CBC_CMD(
-            msg=True,          
-            threads=4,         
-            timeLimit=3600,    
+    #))
+        self.__model.solve(pulp.GUROBI_CMD(
             options=[
-                "ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
-                "preprocess",  # Schalte Vorverarbeitung ein
-                "strongcuts"   # Aktiviere aggressive Schnitte
+                ("Threads", 4),       # Nutze 4 Threads
+                ("Presolve", 2),      # Aggressives Presolve
+                ("Cuts", 2),          # Aggressive Cuts
+                ("Heuristics", 0.5),  # Ausgewogene Heuristik
+               # ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
+                ("TimeLimit", 3600),  # 1 Stunde Zeitlimit
+                ("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
             ]
         ))
 
         
+        #self.__model.solve(PULP_CBC_CMD(
+        #    msg=True,          
+        #    threads=4,         
+        #    timeLimit=3600,    
+        #    options=[
+        #        "ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
+        #        "preprocess",  # Schalte Vorverarbeitung ein
+        #        "strongcuts"   # Aktiviere aggressive Schnitte
+        #    ]
+        #))
 
-
-
-
+        
         directions = self.__sttvs.getDirections() 
 
         # Function to convert seconds into HH:MM format
@@ -538,13 +552,24 @@ class STTVS_Solve:
                             time_window = f"{seconds_to_time(time_windows[i])} - {seconds_to_time(time_windows[i+1])}"
                             break
 
-                    # Print the trip information
-                    print(f"  Trip ID: {trip.getID()}, Time Window: {time_window}, Start: {seconds_to_time(start_time)}, End: {seconds_to_time(trip.getEndTime())}")
-            
+                    # Determine the vehicle that will serve the trip
+                    assigned_vehicle = None
+                    for vehicle in self.__sttvs.getFleet():
+                        if self.__z[trip.getID(), vehicle.getID()].value() == 1:
+                            assigned_vehicle = vehicle.getID()
+                            break
+
+                    # Output of trip information together with the associated vehicle
+                    print(f"  Trip ID: {trip.getID()}, Time Window: {time_window}, "
+                        f"Start: {seconds_to_time(start_time)}, End: {seconds_to_time(trip.getEndTime())}, "
+                        f"Vehicle: {assigned_vehicle if assigned_vehicle is not None else 'None'}")
+        
                 # Print the vehicles used for this line and direction
                 print("  Vehicles used:")
                 for vehicle_id in data["vehicles"]:
                     print(f"    Vehicle ID: {vehicle_id}")
+
+                   
             '''
             def visualize_timetable(timetable_by_line_direction):
                 # Farben für die Fahrzeuge (kann noch erweitert werden)

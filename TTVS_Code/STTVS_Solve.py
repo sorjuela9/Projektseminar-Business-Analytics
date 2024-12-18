@@ -114,7 +114,7 @@ class STTVS_Solve:
 
             for trip_j in trips:
                 if trip_i.getID() == trip_j.getID():
-                    continue
+                    continue   
 
                 direction_j = trip_j.getDirection()  # Use direction information
                 line_j = direction_j.getLine()
@@ -122,7 +122,7 @@ class STTVS_Solve:
                 start_time_j = trip_j.getStartTime()
 
                 if end_node_i == start_node_j:
-                    min_stop = self.__sttvs.getNodeByID(0).getMinMaxStoppingTimes(time_window_idx_i)[0]
+                    min_stop = self.__sttvs.getNodeByID(end_node_i).getMinMaxStoppingTimes(time_window_idx_i)[0]
                     time_diff = start_time_j - end_time_i
 
                     if time_diff >= min_stop:# and end_time_i <= start_time_j: 

@@ -374,14 +374,14 @@ class STTVS_Solve:
 
         # Version 2 needs:
         #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
-        
+
         for i, trip_i in enumerate(trips):
                 if i < 3:  # Nur die ersten 10 Trips ausgeben
                     trip_i_id = trip_i.getID()
                     incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
                     print("Trip " + str(trip_i_id) + " has " + str(len(incompatible_trip_ids)) + " incompatible potential successor trips."+ str(incompatible_trip_ids))
         
-
+        
         # 9. Ensure that vehicles do not cover incompatible trips
         for direction in directions:
             for trip_i in direction.getTrips():

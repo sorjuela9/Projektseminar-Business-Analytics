@@ -13,12 +13,18 @@ class STTVS_Solve:
     def __init__(self, sttvs):
         self.__sttvs = sttvs
         self.__model = pulp.LpProblem("STTVS", pulp.LpMinimize)
-        
+        self.__trips = []
+        self.__directions = []
 
     def generateVariables(self):
         fleet = self.__sttvs.getFleet()  # Load the fleet
-        directions = self.__sttvs.getDirections()  # Load the directions
-        trips = [trip for direction in directions for trip in direction.getTrips()]  # Extract all trips
+        self.__directions = self.__sttvs.getDirections()  # Load the directions
+        #trips = [trip for direction in directions for trip in direction.getTrips()]  # Extract all trips
+        
+        for direction in self.__directions:
+            for trip in direction.getTrips():
+                self.__trips.append(trip)
+        
         nodes = self.__sttvs.getNodes()
         deadhead_arcs = self.__sttvs.getDeadheadArcs()
         
@@ -28,7 +34,7 @@ class STTVS_Solve:
         # Binary variable x_t: 1 if trip t is covered, 0 otherwise
         self.__x = {
             trip.getID(): pulp.LpVariable(f"x_{trip.getID()}", cat="Binary") 
-            for d in directions for trip in d.getTrips()
+            for d in self.__directions for trip in d.getTrips()
         }
     
         # Binary variable y_v: 1 if vehicle v is used, 0 otherwise
@@ -40,7 +46,7 @@ class STTVS_Solve:
         # Binary variable z_t_v: 1 if trip t is assigned to vehicle v, 0 otherwise
         self.__z = {
             (trip.getID(), vehicle.getID()): pulp.LpVariable(f"z_{trip.getID()}_{vehicle.getID()}", cat="Binary")
-            for d in directions for trip in d.getTrips()
+            for d in self.__directions for trip in d.getTrips()
             for vehicle in fleet
         }
     
@@ -69,7 +75,8 @@ class STTVS_Solve:
             for vehicle in fleet
             for direction in directions
             for trip in direction.getTrips()
-            if isinstance(vehicle, CombustionVehicle)
+            #if isinstance(vehicle, CombustionVehicle)
+            if vehicle.getType() =="ICE"
         )
 
         # Define the objective function
@@ -104,7 +111,7 @@ class STTVS_Solve:
     
         inline_compatible = {}
 
-        for trip_i in trips:
+        for trip_i in self.__trips:
             inline_compatible[trip_i.getID()] = []
             direction_i = trip_i.getDirection()  
             line_i = direction_i.getLine()
@@ -112,7 +119,7 @@ class STTVS_Solve:
             end_time_i = trip_i.getEndTime()
             time_window_idx_i = self.find_time_window(end_time_i)
 
-            for trip_j in trips:
+            for trip_j in self.__trips:
                 if trip_i.getID() == trip_j.getID():
                     continue   
 
@@ -134,15 +141,14 @@ class STTVS_Solve:
     
         outline_compatible = {}
         
-        for trip_i in trips:
+        for trip_i in self.__trips:
             compatible_trips = []
             direction_i = trip_i.getDirection()
             end_node_i = direction_i.getEndNode()
-            #arrival_time_i = trip_i.getMainStopArrivalTime()
-            #time_window_idx_i = self.find_time_window(arrival_time_i)  # Get the time window index for trip i
-            time_window_idx_i = self.find_time_window(trip_i.getEndTime())
+            arrival_time_i = trip_i.getMainStopArrivalTime()
+            time_window_idx_i = self.find_time_window(trip_i.getEndTime())  # Get the time window index for trip i
 
-            for trip_j in trips:
+            for trip_j in self.__trips:
                 # A trip cannot be its own successor
                 if trip_i.getID() == trip_j.getID():
                     continue
@@ -152,6 +158,7 @@ class STTVS_Solve:
                 start_node_j = direction_j.getStartNode()
                 if start_node_j and end_node_i:
                     arrival_time_j = trip_j.getMainStopArrivalTime()
+                    time_window_idx_j = self.find_time_window(trip_j.getStartTime())  # Get the time window index for trip j
                     time_window_idx_j = self.find_time_window(trip_j.getStartTime())  # Get the time window index for trip j
 
                     # Calculate Pull-In and Pull-Out times for deadhead arcs
@@ -170,8 +177,9 @@ class STTVS_Solve:
 
                     # Get minimum depot time
 
+                    
                     min_depot_time = self.__sttvs.getNodeByID(0).getMinMaxStoppingTimes(time_window_idx_i)[0]
-                  
+                    
 
                     # Calculate the time difference between trips
                     time_diff = trip_j.getStartTime() - trip_i.getEndTime()
@@ -189,18 +197,20 @@ class STTVS_Solve:
     def calculate_incompatible_potential_successors(self, trips, in_line_compatible, out_line_compatible):
         incompatible_trips = {}
 
-        for trip_i in trips:
+        for trip_i in self.__trips:
             trip_i_id = trip_i.getID()
             direction_i = trip_i.getDirection()  # Use direction information
             # Retrieve compatible trips
-            compatible = set(in_line_compatible.get(trip_i_id, [])) | set(out_line_compatible.get(trip_i_id, []))
-
+            #compatible = set(in_line_compatible.get(trip_i_id, [])) | set(out_line_compatible.get(trip_i_id, []))
+            compatible = set(in_line_compatible.get(trip_i_id, [])) 
+            compatible=compatible.union(set(out_line_compatible.get(trip_i_id, [])))
+             
             # Incompatible trips: All trips that are not compatible and not trip_i itself
             # Note: We check start time of j relative to start time of i (not end time) per the new model
             
 
             incompatible_trips[trip_i_id] = [
-                trip_j.getID() for trip_j in trips
+                trip_j.getID() for trip_j in self.__trips
                 if trip_j.getID() != trip_i_id and trip_j.getID() not in compatible and
                 (trip_j.getStartTime() - trip_i.getStartTime() >= 0)
             ]
@@ -339,7 +349,7 @@ class STTVS_Solve:
                             hw_trip_j = max(hw_trip_i, hw_next)
 
                         # Ensure trip_j starts within the maximum headway of trip_i
-                        if 0 < (a_j - a_i) <= hw_trip_j:
+                        if 0 <= (a_j - a_i) <= hw_trip_j:
                             related_trips.append(trip_j)
 
                 # Add the constraint for trip_i
@@ -375,31 +385,27 @@ class STTVS_Solve:
         # Version 2 needs:
         #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
 
-        for i, trip_i in enumerate(trips):
-                if i < 3:  # Nur die ersten 10 Trips ausgeben
-                    trip_i_id = trip_i.getID()
-                    incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
-                    print("Trip " + str(trip_i_id) + " has " + str(len(incompatible_trip_ids)) + " incompatible potential successor trips."+ str(incompatible_trip_ids))
-        
         
         # 9. Ensure that vehicles do not cover incompatible trips
-        for direction in directions:
-            for trip_i in direction.getTrips():
-                trip_i_id = trip_i.getID()
-                incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
-                num_incompatible = len(incompatible_trip_ids)
+        for trip_i in self.__trips:
+            trip_i_id = trip_i.getID()
+            incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
+            num_incompatible = len(incompatible_trip_ids)
 
-                if num_incompatible > 0:  # Only add constraint if there are incompatible trips
-                    for vehicle in vehicles:
-                        vehicle_id = vehicle.getID()
-                        # Add the aggregated constraint for vehicle v and trip i
-                        self.__model += (
-                            num_incompatible * self.__z[trip_i_id, vehicle_id] +
-                            pulp.lpSum(self.__z[trip_j_id, vehicle_id] for trip_j_id in incompatible_trip_ids) <= num_incompatible,
-                            f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
-                        )
-                        incompatibility_count += 1
-        
+            if num_incompatible > 0:  # Only add constraint if there are incompatible trips
+                for vehicle in vehicles:
+                    vehicle_id = vehicle.getID()
+                    # Add the aggregated constraint for vehicle v and trip i
+                    self.__model += (
+                        num_incompatible * self.__z[trip_i_id, vehicle_id] +
+                        pulp.lpSum(self.__z[trip_j_id, vehicle_id] for trip_j_id in incompatible_trip_ids) <= num_incompatible,
+                        f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
+                    )
+                    incompatibility_count += 1
+            print(trip_i_id, num_incompatible)
+
+
+
         # 10. Ensure a vehicle is marked as used if it is assigned to at least one trip
         num_trips = sum(len(direction.getTrips()) for direction in directions)
         for vehicle in fleet:
@@ -425,40 +431,33 @@ class STTVS_Solve:
 
     def solve(self):
         
-        #self.__model.solve(pulp.GUROBI_CMD(
-        #options=[ #Hier kann man alles noch anpassen
-        #"Threads=4",  # Use 4 threads 
-        #"Presolve=2",  # Aggressive presolve
-        #"Cuts=2",  # Use aggressive cuts
-        #"Heuristics=0.5",  # balanced heuristic for faster feasible solutions
-        #"MIPFocus=1",  # Focus on finding feasible solutions quickly
-        #"TimeLimit=3600",  # 1-hour time limit 
-        #"MIPGap=0.01"  # Accept solutions within 1% of optimality
-    #]
-    #))
         self.__model.solve(pulp.GUROBI_CMD(
-            options=[
-                ("Threads", 4),       # Nutze 4 Threads
-                ("Presolve", 2),      # Aggressives Presolve
-                ("Cuts", 2),          # Aggressive Cuts
-                ("Heuristics", 0.5),  # Ausgewogene Heuristik
-               # ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
-                ("TimeLimit", 3600),  # 1 Stunde Zeitlimit
-                ("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
-            ]
+        options=[ #Hier kann man alles noch anpassen
+        "Threads=4",  # Use 4 threads 
+        "Presolve=2",  # Aggressive presolve
+        "Cuts=2",  # Use aggressive cuts
+        "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
+        "MIPFocus=1",  # Focus on finding feasible solutions quickly
+        "TimeLimit=600"  # 1-hour time limit 
+        #"MIPGap=0.01"  # Accept solutions within 1% of optimality
+    ]
         ))
 
         
         #self.__model.solve(PULP_CBC_CMD(
-        #    msg=True,          
-        #    threads=4,         
-        #    timeLimit=3600,    
-        #    options=[
-        #        "ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
-        #        "preprocess",  # Schalte Vorverarbeitung ein
-        #        "strongcuts"   # Aktiviere aggressive Schnitte
-        #    ]
+            #msg=True,          
+            #threads=4,         
+            #timeLimit=50,    
+            #options=[
+                #"ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
+                #"preprocess",  # Schalte Vorverarbeitung ein
+                #"strongcuts"   # Aktiviere aggressive Schnitte
+            #]
         #))
+    
+        
+
+
 
         
         directions = self.__sttvs.getDirections() 

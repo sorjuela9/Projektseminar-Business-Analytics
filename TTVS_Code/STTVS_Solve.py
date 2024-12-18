@@ -374,6 +374,7 @@ class STTVS_Solve:
 
         # Version 2 needs:
         #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
+        
         for i, trip_i in enumerate(trips):
                 if i < 3:  # Nur die ersten 10 Trips ausgeben
                     trip_i_id = trip_i.getID()

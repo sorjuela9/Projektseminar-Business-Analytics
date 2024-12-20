@@ -5,8 +5,9 @@ from SeniorTTVS import SeniorTTVS
 from Vehicle import CombustionVehicle, ElectricVehicle
 from pulp import GUROBI
 from pulp import GUROBI_CMD
-#import matplotlib.pyplot as plt
 #import networkx as nx
+import matplotlib.pyplot as plt
+from pathlib import Path
 
 class STTVS_Solve:
 
@@ -402,7 +403,7 @@ class STTVS_Solve:
                         f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
                     )
                     incompatibility_count += 1
-            print(trip_i_id, num_incompatible)
+            #print(trip_i_id, num_incompatible)
 
 
 
@@ -456,15 +457,27 @@ class STTVS_Solve:
         #))
         '''
         
+        #self.__model.solve(pulp.GUROBI_CMD(
+         #   options=[
+          #      ("Threads", 4),       # Nutze 4 Threads
+           #     ("Presolve", 2),      # Aggressives Presolve
+            #    ("Cuts", 2),          # Aggressive Cuts
+             #   ("Heuristics", 0.5),  # Ausgewogene Heuristik
+              #  ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
+               # ("TimeLimit", 3600)  # 1 Stunde Zeitlimit
+                #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
+            #]
+        #))
+
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
-                ("Threads", 4),       # Nutze 4 Threads
-                ("Presolve", 2),      # Aggressives Presolve
-                ("Cuts", 2),          # Aggressive Cuts
-                ("Heuristics", 0.5),  # Ausgewogene Heuristik
-                ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
-                ("TimeLimit", 3600)  # 1 Stunde Zeitlimit
-                #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
+                "Threads=4",        # Verwende 4 Threads
+                "Presolve=2",       # Aggressives Presolving
+                "Cuts=2",           # Aggressive Schnitte
+                "Heuristics=0.5",   # Ausgewogene Heuristik
+                "MIPFocus=1",       # Fokus auf schnelle Lösungen
+                "TimeLimit=3600"#,   # Zeitlimit auf 1 Stunde
+                #"MIPGap=0.01"       # Toleranz von 1% für Suboptimale Lösungen
             ]
         ))
 
@@ -579,6 +592,79 @@ class STTVS_Solve:
                 for vehicle_id in data["vehicles"]:
                     print(f"    Vehicle ID: {vehicle_id}")
 
+            def save_timetable_to_latex(timetable_by_line_direction, time_windows, output_file):
+                # Helper function to convert seconds to HH:MM format
+                def seconds_to_time(seconds):
+                    hours = seconds // 3600
+                    minutes = (seconds % 3600) // 60
+                    return f"{hours:02d}:{minutes:02d}"
+
+                # Start building the LaTeX document
+                latex_content = r"""\documentclass{article}
+            \usepackage[a4paper,margin=1in]{geometry}
+            \usepackage{booktabs}
+            \begin{document}
+            \section*{Generated Timetables}
+            """
+                # Iterate over timetables to create tables
+                for timetable_key, data in timetable_by_line_direction.items():
+                    latex_content += f"\\subsection*{{Timetable for {timetable_key}}}\n"
+                    latex_content += r"\begin{tabular}{llccc}" + "\n"
+                    latex_content += r"\toprule" + "\n"
+                    latex_content += r"Trip ID & Time Window & Start Time & End Time & Vehicle ID \\" + "\n"
+                    latex_content += r"\midrule" + "\n"
+
+                    # Sort the trips by start time
+                    trips_sorted = sorted(data["trips"], key=lambda trip: trip.getStartTime())
+
+                    # Add trips to the table
+                    for trip in trips_sorted:
+                        start_time = trip.getStartTime()
+                        end_time = trip.getEndTime()
+                        time_window = ""
+                        for i in range(len(time_windows) - 1):
+                            if time_windows[i] <= start_time < time_windows[i + 1]:
+                                time_window = f"{seconds_to_time(time_windows[i])} - {seconds_to_time(time_windows[i + 1])}"
+                                break
+
+                       # Find the vehicle assigned to this trip
+                        assigned_vehicle = None
+                        for vehicle in self.__sttvs.getFleet():
+                            if self.__z[trip.getID(), vehicle.getID()].value() == 1:
+                                assigned_vehicle = vehicle.getID()
+                                break
+
+                        # Print the trip information along with the assigned vehicle
+                        vehicle_id_display = assigned_vehicle if assigned_vehicle is not None else "None"
+
+                        latex_content += f"{trip.getID()} & {time_window} & {seconds_to_time(start_time)} & {seconds_to_time(end_time)} & {vehicle_id_display} \\\\\n"
+
+                    latex_content += r"\bottomrule" + "\n"
+                    latex_content += r"\end{tabular}" + "\n"
+
+                    # Add vehicles section
+                    latex_content += "\n\\textbf{Vehicles used:}\n"
+                    latex_content += r"\begin{itemize}" + "\n"
+                    for vehicle_id in data["vehicles"]:
+                        latex_content += f"  \\item Vehicle ID: {vehicle_id}\n"
+                    latex_content += r"\end{itemize}" + "\n\n"
+
+                # End the document
+                latex_content += r"\end{document}"
+
+                # Write to the output file
+                output_path = Path(output_file)
+                output_path.write_text(latex_content)
+
+                print(f"LaTeX timetable saved to {output_file}")
+
+
+            # Latex Datei erstellen
+            save_timetable_to_latex(
+                timetable_by_line_direction=timetable_by_line_direction, 
+                time_windows=time_windows, 
+                output_file="timetable.tex"
+            )
                    
             '''
             def visualize_timetable(timetable_by_line_direction):

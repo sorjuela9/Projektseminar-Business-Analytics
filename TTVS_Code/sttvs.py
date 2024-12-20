@@ -143,7 +143,7 @@ if __name__ == '__main__':
     #filename = "TTVS_Instances/3lines_input_S.json"
     #filename = "TTVS_Instances/3linesTriangle_input_S.json"
     #filename = "TTVS_Instances/5lines_Input_S.json"
-    #filename = "TTVS_Instances/8lnes_input_S.json"
+    #filename = "TTVS_Instances/8lines_input_S.json"
     #filename = "TTVS_Instances/Toy_Example_Input_S.json"
 
 

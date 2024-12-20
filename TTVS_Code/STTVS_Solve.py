@@ -430,17 +430,17 @@ class STTVS_Solve:
         
 
     def solve(self):
-        
+        '''
         self.__model.solve(pulp.GUROBI_CMD(
-        options=[ #Hier kann man alles noch anpassen
-        "Threads=4",  # Use 4 threads 
-        "Presolve=2",  # Aggressive presolve
-        "Cuts=2",  # Use aggressive cuts
-        "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
-        "MIPFocus=1",  # Focus on finding feasible solutions quickly
-        "TimeLimit=600"  # 1-hour time limit 
-        #"MIPGap=0.01"  # Accept solutions within 1% of optimality
-    ]
+            options=[ #Hier kann man alles noch anpassen
+                "Threads=4",  # Use 4 threads 
+                "Presolve=2",  # Aggressive presolve
+                "Cuts=2",  # Use aggressive cuts
+                "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
+                "MIPFocus=1",  # Focus on finding feasible solutions quickly
+                "TimeLimit=600"  # 1-hour time limit 
+                #"MIPGap=0.01"  # Accept solutions within 1% of optimality
+            ]
         ))
 
         
@@ -454,9 +454,19 @@ class STTVS_Solve:
                 #"strongcuts"   # Aktiviere aggressive Schnitte
             #]
         #))
-    
+        '''
         
-
+        self.__model.solve(pulp.GUROBI_CMD(
+            options=[
+                ("Threads", 4),       # Nutze 4 Threads
+                ("Presolve", 2),      # Aggressives Presolve
+                ("Cuts", 2),          # Aggressive Cuts
+                ("Heuristics", 0.5),  # Ausgewogene Heuristik
+                ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
+                ("TimeLimit", 3600)  # 1 Stunde Zeitlimit
+                #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
+            ]
+        ))
 
 
         

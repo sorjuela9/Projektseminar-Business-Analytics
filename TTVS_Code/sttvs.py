@@ -114,8 +114,7 @@ def parse(filename):
                 minCT = int(vehicleset2["electricInfo"]["maxChargingTime"])
                 maxCT = int(vehicleset2["electricInfo"]["minChargingTime"])
 
-                if enum > len(dirs) - 2:
-                    enum = len(dirs) - 2
+                enum = len(dirs)
                     
                 for d in range(0, enum):
                     ev = ElectricVehicle(vehicleid, "electric", ucost, pioc, auto, minCT, maxCT)

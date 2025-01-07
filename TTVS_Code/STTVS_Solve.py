@@ -402,7 +402,7 @@ class STTVS_Solve:
                         f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
                     )
                     incompatibility_count += 1
-            print(trip_i_id, num_incompatible)
+            #print(trip_i_id, num_incompatible)
 
 
 
@@ -459,9 +459,9 @@ class STTVS_Solve:
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
                 ("Threads", 4),       # Nutze 4 Threads
-                ("Presolve", 2),      # Aggressives Presolve
-                ("Cuts", 2),          # Aggressive Cuts
-                ("Heuristics", 0.5),  # Ausgewogene Heuristik
+                #("Presolve", 2),      # Aggressives Presolve
+                #("Cuts", 2),          # Aggressive Cuts
+                ("Heuristics", 0.25),  # Ausgewogene Heuristik
                 ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
                 ("TimeLimit", 3600)  # 1 Stunde Zeitlimit
                 #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
@@ -577,7 +577,13 @@ class STTVS_Solve:
                 # Print the vehicles used for this line and direction
                 print("  Vehicles used:")
                 for vehicle_id in data["vehicles"]:
-                    print(f"    Vehicle ID: {vehicle_id}")
+                    vehicle = None
+    
+                    for v in self.__sttvs.getFleet():
+                        if v.getID() == vehicle_id:
+                            vehicle = v
+                            break
+                    print(f"    Vehicle ID: {vehicle_id}, Type: {vehicle.getType()}")
 
                    
             '''

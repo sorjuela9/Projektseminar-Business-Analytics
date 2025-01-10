@@ -456,7 +456,7 @@ class STTVS_Solve:
             #]
         #))
         '''
-        '''
+        
         self.__model.solve(pulp.GUROBI_CMD(
             options=[ #Hier kann man alles noch anpassen
                 "Threads=4",  # Use 4 threads 
@@ -480,7 +480,7 @@ class STTVS_Solve:
                 #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
             ]
         ))
-
+        '''
         
         directions = self.__sttvs.getDirections() 
 

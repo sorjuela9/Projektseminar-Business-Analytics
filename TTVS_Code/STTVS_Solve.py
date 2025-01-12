@@ -1,4 +1,5 @@
 import pulp 
+import time
 #from pulp import PULP_CBC_CMD
 import pandas as pd
 from SeniorTTVS import SeniorTTVS
@@ -6,14 +7,19 @@ from Vehicle import CombustionVehicle, ElectricVehicle
 from pulp import GUROBI
 from pulp import GUROBI_CMD
 #import networkx as nx
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pathlib import Path
-
+import re
+import os
 class STTVS_Solve:
 
     def __init__(self, sttvs):
         self.__sttvs = sttvs
         self.__model = pulp.LpProblem("STTVS", pulp.LpMinimize)
+        log_filename = f"gurobi_{int(time.time())}.log"
+        
+        self.__log_file = log_filename  # Log-Datei, in der die Ausgabe gespeichert wird
+        
         self.__trips = []
         self.__directions = []
 
@@ -217,70 +223,6 @@ class STTVS_Solve:
             ]
 
         return incompatible_trips
-    '''    
-
-    #  Version 2 for T^ips with a single combined definition:
-    def calculate_incompatible_potential_successors(self, trips, directions, nodes, deadhead_arcs):
-        T_ips = {}
-
-        for trip_i in trips:
-            trip_i_id = trip_i.getID()
-            T_ips[trip_i_id] = []
-        
-            # Information of the current trip
-            direction_i = trip_i.getDirection()
-            end_node_i = direction_i.getEndNode()
-            end_time_i = trip_i.getEndTime()
-            start_time_i = trip_i.getStartTime()
-            tw_idx_i = self.find_time_window(end_time_i)
-
-            # Deadhead pull-In time for the endnode of i
-            pull_in_time = 0
-            for arc in deadhead_arcs:
-                if arc.getTerminalNode() == end_node_i and arc.getType() == "in":
-                    pull_in_time = arc.getTravelTimes(tw_idx_i)
-                    break
-
-            # Minimum stop time at the depot
-            depot_min_stop = self.__sttvs.getNodeByID(0).getMinMaxStoppingTimes(tw_idx_i)[0]
-
-            for trip_j in trips:
-                if trip_i_id == trip_j.getID():
-                    continue
-
-                # Information of the successor trip
-                start_node_j = trip_j.getDirection().getStartNode()
-                start_time_j = trip_j.getStartTime()
-                tw_idx_j = self.find_time_window(start_time_j)
-
-                # Deadhead Pull-Out time for the startnode of trip j
-                pull_out_time = 0
-                for arc in deadhead_arcs:
-                    if arc.getTerminalNode() == start_node_j and arc.getType() == "out":
-                        pull_out_time = arc.getTravelTimes(tw_idx_j)
-                        break
-
-                # Check condition: st(j) - st(i) >= 0
-                if start_time_j - start_time_i < 0:
-                    continue  # Überspringe diesen Trip, wenn er kein potenzieller Nachfolger ist
-
-                # Check T¹-condition: too early for inline-compatible
-                if end_node_i == start_node_j:
-                    min_stop = self.__sttvs.getNodeByID(end_node_i).getMinMaxStoppingTimes(tw_idx_i)[0]
-                    if start_time_j - end_time_i < min_stop:
-                        T_ips[trip_i_id].append(trip_j.getID())
-                        continue
-
-                # check T³-condition: too early for outline-compatible
-                if end_node_i != start_node_j:
-                    if start_time_j - end_time_i < pull_in_time + depot_min_stop + pull_out_time:
-                        T_ips[trip_i_id].append(trip_j.getID())
-
-        return T_ips
-    '''
-    
-        
-    
         
     def generateConstraints(self):
         # Zählvariablen für die Abschnitte
@@ -373,21 +315,15 @@ class STTVS_Solve:
                 self.__model += self.__x[trip_id] == pulp.lpSum(self.__z[trip_id, vehicle.getID()] for vehicle in fleet), \
                             f"Link_x_z_{trip_id}"
                 link_x_z_count +=1
-        #Constraint 5-7 no longer necessary, 8 too many constraints
         
-       
         # Calculate the incompatible successors for all trips
 
         #Version 1 for T^ips needs:
         in_line_compatible = self.calculate_in_line_compatibility(trips, directions, nodes)
         out_line_compatible = self.calculate_out_line_compatibility(trips, directions, nodes, deadhead_arcs)
         incompatible_successors = self.calculate_incompatible_potential_successors(trips, in_line_compatible, out_line_compatible)
-
-        # Version 2 needs:
-        #incompatible_successors = self.calculate_incompatible_potential_successors(trips, directions, nodes, deadhead_arcs)
-
         
-        # 9. Ensure that vehicles do not cover incompatible trips
+        # 5. Ensure that vehicles do not cover incompatible trips
         for trip_i in self.__trips:
             trip_i_id = trip_i.getID()
             incompatible_trip_ids = incompatible_successors.get(trip_i_id, [])
@@ -407,7 +343,7 @@ class STTVS_Solve:
 
 
 
-        # 10. Ensure a vehicle is marked as used if it is assigned to at least one trip
+        # 6. Ensure a vehicle is marked as used if it is assigned to at least one trip
         num_trips = sum(len(direction.getTrips()) for direction in directions)
         for vehicle in fleet:
             vehicle_id = vehicle.getID()
@@ -424,64 +360,34 @@ class STTVS_Solve:
         print(f"Total constraints in section 2 (Last trips): {last_trip_count}")
         print(f"Total constraints in section 3 (Max Headway): {max_headway_count}")
         print(f"Total constraints in section 4 (Link x-z): {link_x_z_count}")
-        print(f"Total constraints in section 9 (Incompatibilities): {incompatibility_count}")
-        print(f"Total constraints in section 10 (Vehicle usage): {vehicle_usage_count}")
+        print(f"Total constraints in section 5 (Incompatibilities): {incompatibility_count}")
+        print(f"Total constraints in section 6 (Vehicle usage): {vehicle_usage_count}")
     
       
         
 
     def solve(self):
-        '''
-        self.__model.solve(pulp.GUROBI_CMD(
-            options=[ #Hier kann man alles noch anpassen
-                "Threads=4",  # Use 4 threads 
-                "Presolve=2",  # Aggressive presolve
-                "Cuts=2",  # Use aggressive cuts
-                "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
-                "MIPFocus=1",  # Focus on finding feasible solutions quickly
-                "TimeLimit=600"  # 1-hour time limit 
-                #"MIPGap=0.01"  # Accept solutions within 1% of optimality
-            ]
-        ))
-
         
-        #self.__model.solve(PULP_CBC_CMD(
-            #msg=True,          
-            #threads=4,         
-            #timeLimit=50,    
-            #options=[
-                #"ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
-                #"preprocess",  # Schalte Vorverarbeitung ein
-                #"strongcuts"   # Aktiviere aggressive Schnitte
-            #]
-        #))
-        '''
         
-        #self.__model.solve(pulp.GUROBI_CMD(
-         #   options=[
-          #      ("Threads", 4),       # Nutze 4 Threads
-           #     ("Presolve", 2),      # Aggressives Presolve
-            #    ("Cuts", 2),          # Aggressive Cuts
-             #   ("Heuristics", 0.5),  # Ausgewogene Heuristik
-              #  ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
-               # ("TimeLimit", 3600)  # 1 Stunde Zeitlimit
-                #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
-            #]
-        #))
+        # Ausgabe-Callback speichern
+        #def capture_output(line):
+        #    print(f"Log-Ausgabe: {line}")
+        #    with open(self.__log_file, 'a') as f:  
+        #        f.write(line + "\n")
 
+        #self.__model.msg = capture_output
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
                 ("Threads", 4),       # Nutze 4 Threads
-                ("Presolve", 2),      # Aggressives Presolve
-                ("Cuts", 2),          # Aggressive Cuts
-                ("Heuristics", 0.5),  # Ausgewogene Heuristik
+                ("Heuristics", 0.25),  # Ausgewogene Heuristik
                 ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
-                ("TimeLimit", 3600)  # 1 Stunde Zeitlimit
-                #("MIPGap", 0.01)      # Akzeptiere Lösungen innerhalb 1% der Optimalität
-            ]
+                ("TimeLimit", 60),  # 1 Stunde Zeitlimit
+                ("LogFile", self.__log_file),  # Sicherstellen, dass die Log-Datei gespeichert wird
+            ],msg=True,
+           
         ))
-
-
+        
+        
         
         directions = self.__sttvs.getDirections() 
 
@@ -490,12 +396,21 @@ class STTVS_Solve:
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
             return f"{hours:02}:{minutes:02}"
+
+        
+        gap = self.extract_gap_from_log(self.__log_file)
+
         
         # Check if an optimal solution has been found
         if pulp.LpStatus[self.__model.status] == 'Optimal':
-            print("Optimal solution found!")
+            if gap == 0:
+                print("Optimal solution found.")
+            else:
+                print(f"Feasible solution found with gap: {gap}%")
+        
+        
             print("Objective value:", self.__model.objective.value())
-
+            
             # Output the covered trips
             covered_trips = []
             for direction in directions:
@@ -597,21 +512,22 @@ class STTVS_Solve:
                             vehicle = v
                             break
                     print(f"    Vehicle ID: {vehicle_id}, Type: {vehicle.getType()}")
-
+            '''
             def save_timetable_to_latex(timetable_by_line_direction, time_windows, output_file):
                 # Helper function to convert seconds to HH:MM format
                 def seconds_to_time(seconds):
                     hours = seconds // 3600
                     minutes = (seconds % 3600) // 60
                     return f"{hours:02d}:{minutes:02d}"
-
+            '''
                 # Start building the LaTeX document
-                latex_content = r"""\documentclass{article}
-            \usepackage[a4paper,margin=1in]{geometry}
-            \usepackage{booktabs}
-            \begin{document}
-            \section*{Generated Timetables}
-            """
+            #   latex_content = r"""\documentclass{article}
+            #\usepackage[a4paper,margin=1in]{geometry}
+            #\usepackage{booktabs}
+            #\begin{document}
+            #\section*{Generated Timetables}
+            #"""
+            '''
                 # Iterate over timetables to create tables
                 for timetable_key, data in timetable_by_line_direction.items():
                     latex_content += f"\\subsection*{{Timetable for {timetable_key}}}\n"
@@ -671,8 +587,8 @@ class STTVS_Solve:
                 time_windows=time_windows, 
                 output_file="timetable.tex"
             )
-                   
-            '''
+                
+            
             def visualize_timetable(timetable_by_line_direction):
                 # Farben für die Fahrzeuge (kann noch erweitert werden)
                 vehicle_colors = {}
@@ -738,10 +654,39 @@ class STTVS_Solve:
 
             # Aufruf der Visualisierungsfunktion mit deinem Fahrplandatensatz
             visualize_timetable(timetable_by_line_direction)
-        '''       
+        '''          
+        
+        elif pulp.LpStatus[self.__model.status] == 'Infeasible':
+            print("No feasible solution exists.")
+        elif pulp.LpStatus[self.__model.status] == 'Unbounded':
+            print("The model is unbounded.")
         else:
-            print("No optimal solution found.")
+            print("No solution found within the given constraints.")
+        # Lösche die Log-Datei, nachdem der Gap-Wert extrahiert wurde
+        if os.path.exists(self.__log_file):
+            os.remove(self.__log_file)
+            #print(f"Log-Datei '{self.__log_file}' wurde gelöscht.")
 
+    def extract_gap_from_log(self,log_filename):
+        # Gap-Wert aus der Log-Datei extrahieren
+            try:
+                with open(log_filename, "r") as file:
+                    log_output = file.read()
+                    
+                # Alle Vorkommen des Musters (Zahl vor %) suchen
+                gap_matches = re.findall(r"(\d+\.\d+)%", log_output)
+            
+                if gap_matches:
+                    # Letzten Gap-Wert aus der Liste extrahieren
+                    gap = float(gap_matches[-1])  # Der Wert vor dem letzten Prozentzeichen
+                    return gap  # Gebe den Gap-Wert zurück
+                else:
+                    return None  # Kein Gap gefunden
+
+            except FileNotFoundError:
+                return None  # Log-Datei nicht gefunden
+
+    
 
     def writeLPFile(self, filename):
         self.__model.writeLP(filename)

@@ -459,11 +459,11 @@ class STTVS_Solve:
         
         self.__model.solve(pulp.GUROBI_CMD(
             options=[ #Hier kann man alles noch anpassen
-                "Threads=0",  # Use 4 threads 
+                "Threads=4",  # Use 4 threads 
                 #"Presolve=2",  # Aggressive presolve
                 #"Cuts=2",  # Use aggressive cuts
-                #"Heuristics=0.25",  # balanced heuristic for faster feasible solutions
-                #"MIPFocus=1",  # Focus on finding feasible solutions quickly
+                "Heuristics=0.25",  # balanced heuristic for faster feasible solutions
+                "MIPFocus=1",  # Focus on finding feasible solutions quickly
                 "TimeLimit=3600",  # 1-hour time limit 
                 #"MIPGap=0.01"  # Accept solutions within 1% of optimality
             ]

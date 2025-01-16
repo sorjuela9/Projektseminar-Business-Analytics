@@ -114,9 +114,8 @@ def parse(filename):
                 minCT = int(vehicleset2["electricInfo"]["maxChargingTime"])
                 maxCT = int(vehicleset2["electricInfo"]["minChargingTime"])
 
-                if enum > len(dirs) - 2:
-                    enum = len(dirs) - 2
-
+                enum = len(dirs)
+                    
                 for d in range(0, enum):
                     ev = ElectricVehicle(vehicleid, "electric", ucost, pioc, auto, minCT, maxCT)
                     fleet.append(ev)
@@ -134,7 +133,21 @@ if __name__ == '__main__':
      #   print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
       #  exit(0)
 
-    filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
+    #filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
+    #filename = "TTVS_Instances/1line_input_S.json"
+    #filename = "TTVS_Instances/1line_6timeWindow_input_S.json"
+    #filename = "TTVS_Instances/1line_input_S.json"
+    #filename = "TTVS_Instances/2lines_input_S.json"
+    #filename = "TTVS_Instances/2lines_6_timeWindows_input_S.json"
+    #filename = "TTVS_Instances/3lines_input_S.json"
+    #filename = "TTVS_Instances/3linesTriangle_input_S.json"
+    #filename = "TTVS_Instances/5lines_Input_S.json"
+    #filename = "TTVS_Instances/8lnes_input_S.json"
+    filename = "TTVS_Instances/Toy_Example_Input_S.json"
+
+
+
+
 
     problem = parse(filename)
 
@@ -144,12 +157,15 @@ if __name__ == '__main__':
 
     solver.generateConstraints()
 
+    solver.generateObjectiveFunction()
+
     #solver.printConstraints() #Print constraints
 
-    solver.writeLPFile("model.lp")  # Write the model to a file for debugging
-
+    #solver.writeLPFile("model.lp")  # Write the model to a file for debugging
+    
     solver.solve()
+    
+    
+    #solver.printVariableValues()
 
-    solver.printVariableValues()
-
-    solver.printModelInfo()
+    #solver.printModelInfo()

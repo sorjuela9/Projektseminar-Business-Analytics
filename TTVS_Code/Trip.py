@@ -15,7 +15,7 @@ class Trip:
         return self.__id
 
     def getDirection(self):
-        return self.__dir
+        return self.__dir     
 
     def getStartTime(self):
         return self.__startTime

@@ -7,12 +7,43 @@ def seconds_to_time(seconds):
     return str(timedelta(seconds=seconds))
 
 # Laden der JSON-Datei
-file_path = 'TTVS_Instances/Small_Input_S.json'  
+#file_path = 'TTVS_Instances/Small_Input_S.json'  
 #file_path = 'TTVS_Instances/Medium_Input_S.json'
 #file_path = 'TTVS_Instances/Large_Input_S.json'
+#file_path = "TTVS_Instances/1line_6timeWindow_input_S.json"
+#file_path = "TTVS_Instances/1line_input_S.json"
+#file_path = "TTVS_Instances/2lines_input_S.json"
+#file_path = "TTVS_Instances/2lines_6_timeWindows_input_S.json"
+#file_path = "TTVS_Instances/3lines_input_S.json"
+#file_path = "TTVS_Instances/3linesTriangle_input_S.json"
+file_path = "TTVS_Instances/5lines_input_S.json"
+#file_path = "TTVS_Instances/8lines_input_S.json"
+#file_path = "TTVS_Instances/Toy_Example_Input_S.json"
 
 with open(file_path, 'r') as file:
     data = json.load(file)
+
+
+# Gesamtzahl der Trips und Knoten
+total_trips = 0
+
+
+# Iteration durch alle Richtungen (inBound und outBound)
+for direction in data['directions']:
+    trips = direction['direction']['trips']
+    
+    # Zählen der Trips
+    total_trips += len(trips)
+    
+    
+# Gesamtzahl der Knoten zählen
+total_nodes = len(data["nodes"])
+
+
+# Ausgabe der Gesamtzahl an Trips und Knoten
+print(f"Gesamtzahl der Trips: {total_trips}")
+print(f"Gesamtzahl der Knoten: {total_nodes}")
+
 
 # Zeitfenster
 time_windows = data["timeHorizon"]

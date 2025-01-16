@@ -136,15 +136,20 @@ if __name__ == '__main__':
     #filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
     #filename = "TTVS_Instances/1line_input_S.json"
     #filename = "TTVS_Instances/1line_6timeWindow_input_S.json"
-    #filename = "TTVS_Instances/Toy_Example_Input_S.json"
-    #filename = "TTVS_Instances/Medium_Input_S.json"
-    filename = "TTVS_Instances/2lines_input_S.json"
+    #filename = "TTVS_Instances/1line_input_S.json"
+    #filename = "TTVS_Instances/2lines_input_S.json"
     #filename = "TTVS_Instances/2lines_6_timeWindows_input_S.json"
     #filename = "TTVS_Instances/3lines_input_S.json"
     #filename = "TTVS_Instances/3linesTriangle_input_S.json"
-    #filename = "TTVS_Instances/5lines_input_S.json"
+    #filename = "TTVS_Instances/5lines_Input_S.json"
+<<<<<<< HEAD
+    #filename = "TTVS_Instances/8lnes_input_S.json"
+    filename = "TTVS_Instances/Toy_Example_Input_S.json"
+=======
     #filename = "TTVS_Instances/8lines_input_S.json"
-    #filename = "TTVS_Instances/Large_Input_S.json"
+    #filename = "TTVS_Instances/Toy_Example_Input_S.json"
+>>>>>>> 7e7305305b30e15f746a7562f34ccfdd1f05581a
+
 
 
 

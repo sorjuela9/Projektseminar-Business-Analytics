@@ -1,13 +1,10 @@
 import pulp 
 import time
-#from pulp import PULP_CBC_CMD
 import pandas as pd
 from SeniorTTVS import SeniorTTVS
 from Vehicle import CombustionVehicle, ElectricVehicle
 from pulp import GUROBI
 from pulp import GUROBI_CMD
-#import networkx as nx
-#import matplotlib.pyplot as plt
 from pathlib import Path
 import re
 import os
@@ -17,9 +14,7 @@ class STTVS_Solve:
         self.__sttvs = sttvs
         self.__model = pulp.LpProblem("STTVS", pulp.LpMinimize)
         log_filename = f"gurobi_{int(time.time())}.log"
-        
         self.__log_file = log_filename  # Log-Datei, in der die Ausgabe gespeichert wird
-        
         self.__trips = []
         self.__directions = []
 
@@ -339,7 +334,7 @@ class STTVS_Solve:
                         f"Constraint_9_{trip_i_id}_Vehicle_{vehicle_id}"
                     )
                     incompatibility_count += 1
-            #print(trip_i_id, num_incompatible)
+            
 
 
 
@@ -368,26 +363,20 @@ class STTVS_Solve:
 
     def solve(self):
         
-        
-        # Ausgabe-Callback speichern
-        #def capture_output(line):
-        #    print(f"Log-Ausgabe: {line}")
-        #    with open(self.__log_file, 'a') as f:  
-        #        f.write(line + "\n")
-
-        #self.__model.msg = capture_output
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
                 ("Threads", 4),       # Nutze 4 Threads
                 ("Heuristics", 0.25),  # Ausgewogene Heuristik
                 ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
-                ("TimeLimit", 60),  # 1 Stunde Zeitlimit
+                ("TimeLimit", 3600),  # 1 Stunde Zeitlimit
                 ("LogFile", self.__log_file),  # Sicherstellen, dass die Log-Datei gespeichert wird
             ],msg=True,
            
         ))
         
         
+        gap = self.extract_gap_from_log(self.__log_file)
+
         
         directions = self.__sttvs.getDirections() 
 
@@ -396,10 +385,6 @@ class STTVS_Solve:
             hours = seconds // 3600
             minutes = (seconds % 3600) // 60
             return f"{hours:02}:{minutes:02}"
-
-        
-        gap = self.extract_gap_from_log(self.__log_file)
-
         
         # Check if an optimal solution has been found
         if pulp.LpStatus[self.__model.status] == 'Optimal':
@@ -512,149 +497,6 @@ class STTVS_Solve:
                             vehicle = v
                             break
                     print(f"    Vehicle ID: {vehicle_id}, Type: {vehicle.getType()}")
-            '''
-            def save_timetable_to_latex(timetable_by_line_direction, time_windows, output_file):
-                # Helper function to convert seconds to HH:MM format
-                def seconds_to_time(seconds):
-                    hours = seconds // 3600
-                    minutes = (seconds % 3600) // 60
-                    return f"{hours:02d}:{minutes:02d}"
-            '''
-                # Start building the LaTeX document
-            #   latex_content = r"""\documentclass{article}
-            #\usepackage[a4paper,margin=1in]{geometry}
-            #\usepackage{booktabs}
-            #\begin{document}
-            #\section*{Generated Timetables}
-            #"""
-            '''
-                # Iterate over timetables to create tables
-                for timetable_key, data in timetable_by_line_direction.items():
-                    latex_content += f"\\subsection*{{Timetable for {timetable_key}}}\n"
-                    latex_content += r"\begin{tabular}{llccc}" + "\n"
-                    latex_content += r"\toprule" + "\n"
-                    latex_content += r"Trip ID & Time Window & Start Time & End Time & Vehicle ID \\" + "\n"
-                    latex_content += r"\midrule" + "\n"
-
-                    # Sort the trips by start time
-                    trips_sorted = sorted(data["trips"], key=lambda trip: trip.getStartTime())
-
-                    # Add trips to the table
-                    for trip in trips_sorted:
-                        start_time = trip.getStartTime()
-                        end_time = trip.getEndTime()
-                        time_window = ""
-                        for i in range(len(time_windows) - 1):
-                            if time_windows[i] <= start_time < time_windows[i + 1]:
-                                time_window = f"{seconds_to_time(time_windows[i])} - {seconds_to_time(time_windows[i + 1])}"
-                                break
-
-                       # Find the vehicle assigned to this trip
-                        assigned_vehicle = None
-                        for vehicle in self.__sttvs.getFleet():
-                            if self.__z[trip.getID(), vehicle.getID()].value() == 1:
-                                assigned_vehicle = vehicle.getID()
-                                break
-
-                        # Print the trip information along with the assigned vehicle
-                        vehicle_id_display = assigned_vehicle if assigned_vehicle is not None else "None"
-
-                        latex_content += f"{trip.getID()} & {time_window} & {seconds_to_time(start_time)} & {seconds_to_time(end_time)} & {vehicle_id_display} \\\\\n"
-
-                    latex_content += r"\bottomrule" + "\n"
-                    latex_content += r"\end{tabular}" + "\n"
-
-                    # Add vehicles section
-                    latex_content += "\n\\textbf{Vehicles used:}\n"
-                    latex_content += r"\begin{itemize}" + "\n"
-                    for vehicle_id in data["vehicles"]:
-                        latex_content += f"  \\item Vehicle ID: {vehicle_id}\n"
-                    latex_content += r"\end{itemize}" + "\n\n"
-
-                # End the document
-                latex_content += r"\end{document}"
-
-                # Write to the output file
-                output_path = Path(output_file)
-                output_path.write_text(latex_content)
-
-                print(f"LaTeX timetable saved to {output_file}")
-
-
-            # Latex Datei erstellen
-            save_timetable_to_latex(
-                timetable_by_line_direction=timetable_by_line_direction, 
-                time_windows=time_windows, 
-                output_file="timetable.tex"
-            )
-                
-            
-            def visualize_timetable(timetable_by_line_direction):
-                # Farben für die Fahrzeuge (kann noch erweitert werden)
-                vehicle_colors = {}
-                available_colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan']
-                color_index = 0
-
-                # Initialisieren des Graphen
-                G = nx.DiGraph()
-
-                # Edges und Nodes aus timetable_by_line_direction extrahieren
-                edge_labels = {}
-                for timetable_key, data in timetable_by_line_direction.items():
-                    for trip in data["trips"]:
-                        start_node = trip.getStartStation()
-                        end_node = trip.getEndStation()
-                        start_time = trip.getStartTime()
-                        end_time = trip.getEndTime()
-                        trip_id = trip.getID()
-
-                        # Füge Haltestellen als Nodes hinzu
-                        G.add_node(start_node)
-                        G.add_node(end_node)
-
-                        # Füge die Fahrt als Edge hinzu
-                        G.add_edge(start_node, end_node)
-
-                        # Label der Kante: Zeit und Trip-ID
-                        edge_labels[(start_node, end_node)] = f"{trip_id}: {seconds_to_time(start_time)} - {seconds_to_time(end_time)}"
-
-                        # Farbcodierung für Fahrzeuge
-                        for vehicle_id in data["vehicles"]:
-                            if vehicle_id not in vehicle_colors:
-                                vehicle_colors[vehicle_id] = available_colors[color_index % len(available_colors)]
-                                color_index += 1
-
-                # Positionierung der Knoten
-                pos = nx.spring_layout(G)
-
-                # Zeichnen der Haltestellen (Nodes)
-                nx.draw_networkx_nodes(G, pos, node_color='lightgray', node_size=700)
-
-                # Zeichnen der Verbindungen (Edges) mit Farben für verschiedene Fahrzeuge
-                for vehicle_id, color in vehicle_colors.items():
-                    vehicle_edges = [
-                        (u, v) for u, v in G.edges if vehicle_id in timetable_by_line_direction[timetable_key]["vehicles"]
-                    ]
-                    nx.draw_networkx_edges(G, pos, edgelist=vehicle_edges, edge_color=color, width=2, label=vehicle_id)
-
-                # Beschriftung der Haltestellen (Nodes)
-                nx.draw_networkx_labels(G, pos, font_size=10, font_color="black")
-
-                # Beschriftung der Verbindungen (Edges)
-                nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='darkblue')
-
-                # Legende für Fahrzeuge
-                plt.legend(handles=[
-                    plt.Line2D([0], [0], color=color, lw=2, label=vehicle_id) for vehicle_id, color in vehicle_colors.items()
-                ], loc='upper left')
-
-                # Titel und Anzeige
-                plt.title("Fahrplanvisualisierung")
-                plt.show()
-
-            # Aufruf der Visualisierungsfunktion mit deinem Fahrplandatensatz
-            visualize_timetable(timetable_by_line_direction)
-        '''          
         
         elif pulp.LpStatus[self.__model.status] == 'Infeasible':
             print("No feasible solution exists.")
@@ -662,31 +504,28 @@ class STTVS_Solve:
             print("The model is unbounded.")
         else:
             print("No solution found within the given constraints.")
-        # Lösche die Log-Datei, nachdem der Gap-Wert extrahiert wurde
+         #Lösche die Log-Datei, nachdem der Gap-Wert extrahiert wurde
         if os.path.exists(self.__log_file):
             os.remove(self.__log_file)
-            #print(f"Log-Datei '{self.__log_file}' wurde gelöscht.")
+            
 
     def extract_gap_from_log(self,log_filename):
-        # Gap-Wert aus der Log-Datei extrahieren
-            try:
-                with open(log_filename, "r") as file:
-                    log_output = file.read()
+         #Gap-Wert aus der Log-Datei extrahieren
+        try:
+            with open(log_filename, "r") as file:
+                log_output = file.read()
                     
-                # Alle Vorkommen des Musters (Zahl vor %) suchen
-                gap_matches = re.findall(r"(\d+\.\d+)%", log_output)
+            # Alle Vorkommen des Musters (Zahl vor %) suchen
+            gap_matches = re.findall(r"(\d+\.\d+)%", log_output)
             
-                if gap_matches:
-                    # Letzten Gap-Wert aus der Liste extrahieren
-                    gap = float(gap_matches[-1])  # Der Wert vor dem letzten Prozentzeichen
-                    return gap  # Gebe den Gap-Wert zurück
-                else:
-                    return None  # Kein Gap gefunden
-
-            except FileNotFoundError:
+            if gap_matches:
+                # Letzten Gap-Wert aus der Liste extrahieren
+                gap = float(gap_matches[-1])  # Der Wert vor dem letzten Prozentzeichen
+                return gap  # Gebe den Gap-Wert zurück
+            else:
+                return None  # Kein Gap gefunden
+        except FileNotFoundError:
                 return None  # Log-Datei nicht gefunden
-
-    
 
     def writeLPFile(self, filename):
         self.__model.writeLP(filename)

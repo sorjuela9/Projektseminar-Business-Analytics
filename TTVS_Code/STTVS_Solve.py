@@ -362,44 +362,7 @@ class STTVS_Solve:
         
 
     def solve(self):
-        '''
-        self.__model.solve(pulp.GUROBI_CMD(
-            options=[ #Hier kann man alles noch anpassen
-                "Threads=4",  # Use 4 threads 
-                "Presolve=2",  # Aggressive presolve
-                "Cuts=2",  # Use aggressive cuts
-                "Heuristics=0.5",  # balanced heuristic for faster feasible solutions
-                "MIPFocus=1",  # Focus on finding feasible solutions quickly
-                "TimeLimit=600"  # 1-hour time limit 
-                #"MIPGap=0.01"  # Accept solutions within 1% of optimality
-            ]
-        ))
-
-        
-        #self.__model.solve(PULP_CBC_CMD(
-            #msg=True,          
-            #threads=4,         
-            #timeLimit=50,    
-            #options=[
-                #"ratio=0.01",  # Akzeptiere Lösungen innerhalb 1% der Optimalität
-                #"preprocess",  # Schalte Vorverarbeitung ein
-                #"strongcuts"   # Aktiviere aggressive Schnitte
-            #]
-        #))
-        '''
-        
-        self.__model.solve(pulp.GUROBI_CMD(
-            options=[ #Hier kann man alles noch anpassen
-                "Threads=4",  # Use 4 threads 
-                #"Presolve=2",  # Aggressive presolve
-                #"Cuts=2",  # Use aggressive cuts
-                "Heuristics=0.25",  # balanced heuristic for faster feasible solutions
-                "MIPFocus=1",  # Focus on finding feasible solutions quickly
-                "TimeLimit=3600",  # 1-hour time limit 
-                #"MIPGap=0.01"  # Accept solutions within 1% of optimality
-            ]
-        ))
-        '''
+       
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
                 ("Threads", 4),       # Nutze 4 Threads
@@ -414,7 +377,7 @@ class STTVS_Solve:
         
         gap = self.extract_gap_from_log(self.__log_file)
 
-        '''
+        
         
         directions = self.__sttvs.getDirections() 
 

@@ -169,12 +169,12 @@ class STTVS_Solve:
 
                     for arc in deadhead_arcs:
                         if arc.getTerminalNode() == end_node_i and arc.getType() == "in":
-                            pull_in_time = arc.getTravelTimes(time_window_idx_i)
+                            pull_in_time = arc.getTravelTime(time_window_idx_i)
                             break
 
                     for arc in deadhead_arcs:
                         if arc.getTerminalNode() == start_node_j and arc.getType() == "out":
-                            pull_out_time = arc.getTravelTimes(time_window_idx_j)
+                            pull_out_time = arc.getTravelTime(time_window_idx_j)
                             break
 
                     # Get minimum depot time

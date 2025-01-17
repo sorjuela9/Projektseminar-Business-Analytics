@@ -362,7 +362,7 @@ class STTVS_Solve:
         
 
     def solve(self):
-       
+        '''
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
                 ("Threads", 4),       # Nutze 4 Threads
@@ -373,7 +373,17 @@ class STTVS_Solve:
             ],msg=True,
            
         ))
-        
+        '''
+        #Für Mac (die Gurobiversion braucht ein anderes Eingabeformat)
+        self.__model.solve(pulp.GUROBI_CMD(
+            options=[ #Hier kann man alles noch anpassen
+                "Threads=0",   # Nutze 4 Threads
+                "Heuristics=0.25",  # Ausgewogene Heuristik
+                "MIPFocus=1", # Fokus auf schnelle Lösungen
+                "TimeLimit=3600",   # 1 Stunde Zeitlimit
+                f"LogFile={self.__log_file}",  # Sicherstellen, dass die Log-Datei gespeichert wird
+            ],msg=True,
+        ))
         
         gap = self.extract_gap_from_log(self.__log_file)
 

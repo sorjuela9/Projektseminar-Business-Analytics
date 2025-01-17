@@ -376,7 +376,7 @@ class STTVS_Solve:
         '''
         #Für Mac (die Gurobiversion braucht ein anderes Eingabeformat)
         self.__model.solve(pulp.GUROBI_CMD(
-            options=[ #Hier kann man alles noch anpassen
+            options=[
                 "Threads=0",   # Nutze 4 Threads
                 "Heuristics=0.25",  # Ausgewogene Heuristik
                 "MIPFocus=1", # Fokus auf schnelle Lösungen

@@ -133,10 +133,10 @@ if __name__ == '__main__':
      #   print("Missing argument(s). Usage: ./sttvs.py <json instance file>")
       #  exit(0)
 
-    filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
+    #filename = "TTVS_Instances/Small_Input_S.json"#sys.argv[1]
     #filename = "TTVS_Instances/1line_input_S.json"
     #filename = "TTVS_Instances/1line_6timeWindow_input_S.json"
-    #filename = "TTVS_Instances/1line_input_S.json"
+    filename = "TTVS_Instances/1line_input_S.json"
     #filename = "TTVS_Instances/2lines_input_S.json"
     #filename = "TTVS_Instances/2lines_6_timeWindows_input_S.json"
     #filename = "TTVS_Instances/3lines_input_S.json"

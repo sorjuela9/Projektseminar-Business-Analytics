@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # Sven Mallach (2024)
-import pulp
+
 import sys
 import os
 import json
@@ -165,6 +165,7 @@ if __name__ == '__main__':
     #solver.writeLPFile("model.lp")  # Write the model to a file for debugging
     
     solver.solve()
+
     
     
     #solver.printVariableValues()

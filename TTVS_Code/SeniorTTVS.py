@@ -16,9 +16,6 @@ class SeniorTTVS:
 
     def getBreakCostCoefficient(self):
         return self.__breakCostCoefficient
-    
-    def getNodes(self):
-        return self.__nodes
 
     def getDeadheadArcs(self):
         return self.__deadheadArcs
@@ -31,10 +28,12 @@ class SeniorTTVS:
 
     def getFleet(self):
         return self.__fleet
-        
+
+    def getNodes(self):
+        return self.__nodes
+
     def getNodeByID(self, nr):
         for node in self.__nodes:
             if node.getID() == nr:
                 return node
         return None
-

@@ -1,0 +1,105 @@
+
+Gurobi 10.0.3 (linux64, gurobi_cl) logging started Thu Jan 16 19:41:25 2025
+
+Set parameter Username
+Set parameter TimeLimit to value 3600
+Set parameter LogFile to value "gurobi_1737052768.log"
+Set parameter Threads to value 4
+Academic license - for non-commercial use only - expires 2025-12-13
+Using license file /home/familie/gurobi.lic
+
+Gurobi Optimizer version 10.0.3 build v10.0.3rc0 (linux64)
+Copyright (c) 2023, Gurobi Optimization, LLC
+
+Read LP format model from file /tmp/babfdd0ef18445f3bc8c2af485df5616-pulp.lp
+Reading time = 2.13 seconds
+Minimize_total_costs: 57590 rows, 51848 columns, 9193526 nonzeros
+
+CPU model: AMD Ryzen 7 PRO 4750U with Radeon Graphics, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 4 threads
+
+Optimize a model with 57590 rows, 51848 columns and 9193526 nonzeros
+Model fingerprint: 0xe7391a18
+Variable types: 0 continuous, 51848 integer (51848 binary)
+Coefficient statistics:
+  Matrix range     [1e+00, 6e+03]
+  Objective range  [1e-02, 8e+01]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [1e+00, 2e+02]
+Presolve removed 0 rows and 0 columns (presolve time = 5s) ...
+Presolve removed 608 rows and 0 columns (presolve time = 10s) ...
+Presolve removed 688 rows and 0 columns (presolve time = 15s) ...
+Presolve removed 688 rows and 0 columns (presolve time = 20s) ...
+Presolve removed 688 rows and 0 columns (presolve time = 25s) ...
+Presolve removed 688 rows and 0 columns (presolve time = 30s) ...
+Presolve removed 688 rows and 0 columns (presolve time = 35s) ...
+Presolve removed 688 rows and 0 columns
+Presolve time: 37.08s
+Presolved: 56902 rows, 51848 columns, 9151390 nonzeros
+Variable types: 0 continuous, 51848 integer (51848 binary)
+Deterministic concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Root barrier log...
+
+
+Barrier performed 0 iterations in 41.70 seconds (54.44 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+Concurrent spin time: 0.23s (can be avoided by choosing Method=3)
+
+Solved with dual simplex
+
+Root relaxation: objective 1.647073e-01, 602 iterations, 3.28 seconds (4.48 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0    0.16471    0  234          -    0.16471      -     -   42s
+     0     0    0.28714    0  365          -    0.28714      -     -   52s
+     0     0    0.28714    0  367          -    0.28714      -     -   52s
+     0     0    0.30154    0  326          -    0.30154      -     -   54s
+     0     0  280.02410    0 7001          -  280.02410      -     -   77s
+     0     0  280.02410    0 6997          -  280.02410      -     -   85s
+     0     0  280.02410    0 1860          -  280.02410      -     -  156s
+     0     0  280.02410    0 1840          -  280.02410      -     -  157s
+     0     0  420.00000    0 1763          -  420.00000      -     -  162s
+     0     0  420.00000    0 1646          -  420.00000      -     -  164s
+     0     0  420.00000    0  403          -  420.00000      -     -  175s
+     0     0  420.00000    0  430          -  420.00000      -     -  177s
+     0     0  420.00000    0  477          -  420.00000      -     -  179s
+     0     0  420.00000    0  474          -  420.00000      -     -  181s
+     0     0  420.00000    0  396          -  420.00000      -     -  189s
+     0     0  420.00000    0  398          -  420.00000      -     -  190s
+     0     0  420.00000    0  391          -  420.00000      -     -  198s
+     0     0  420.00000    0  440          -  420.00000      -     -  200s
+     0     0  420.00000    0  417          -  420.00000      -     -  207s
+     0     0  420.00000    0  435          -  420.00000      -     -  209s
+     0     0  420.00000    0  418          -  420.00000      -     -  214s
+     0     0  420.00000    0  415          -  420.00000      -     -  217s
+     0     2  420.00000    0  415          -  420.00000      -     -  258s
+     3     8  420.00000    2  456          -  420.00000      -   574  261s
+    28    35  420.46114    7  424          -  420.00000      -   228  265s
+    63    64  497.01060   13  581          -  420.00000      -   145  270s
+   115   110  424.30744   17  523          -  420.00000      -   106  276s
+   158   131  427.56278   21  565          -  420.00000      -  95.6  280s
+   206   144  420.00000    4  526          -  420.00000      -   100  286s
+   253   190  497.01020    8  494          -  420.00000      -   101  291s
+   306   225  497.01020   14  490          -  420.00000      -  93.4  295s
+   354   251  574.01421   24  558          -  420.00000      -   106  301s
+   408   268  420.39667    8  576          -  420.00000      -   110  318s
+   417   295  497.02266   11  532          -  420.00000      -   136  334s
+   448   317  504.05311   16  507          -  420.00000      -   149  337s
+   483   338  504.05760   27  487          -  420.00000      -   151  344s
+   530   366  574.02764   35  599          -  420.00000      -   148  350s
+   577   411  574.04426   52  578          -  420.00000      -   148  357s
+   639   438  497.01020    5  507          -  420.00000      -   144  371s
+   671   474  497.01216    9  529          -  420.00000      -   151  383s
+   711   507  497.01300   13  615          -  420.00000      -   156  395s
+   761   524 infeasible   22               -  420.00000      -   160  401s
+   788   570  420.00000    9  650          -  420.00000      -   172  407s
+   853   618  420.03563   14  669          -  420.00000      -   168  413s
+   910   680  427.04322   19  656          -  420.00000      -   165  421s
+  1000   781  504.03874   32  577          -  420.00000      -   158  430s
+  1164   782  651.03120    6  415          -  420.00000      -   142 1402s
+  1165   783  497.01037   36  415          -  420.00000      -   142 1406s

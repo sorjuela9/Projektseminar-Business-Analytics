@@ -1,0 +1,88 @@
+
+Gurobi 10.0.3 (linux64, gurobi_cl) logging started Thu Jan 16 20:09:42 2025
+
+Set parameter Username
+Set parameter TimeLimit to value 3600
+Set parameter LogFile to value "gurobi_1737054470.log"
+Set parameter Threads to value 4
+Academic license - for non-commercial use only - expires 2025-12-13
+Using license file /home/familie/gurobi.lic
+
+Gurobi Optimizer version 10.0.3 build v10.0.3rc0 (linux64)
+Copyright (c) 2023, Gurobi Optimization, LLC
+
+Read LP format model from file /tmp/474453ef8cad4632b8c4fccd32e310ce-pulp.lp
+Reading time = 2.00 seconds
+Minimize_total_costs: 57590 rows, 51848 columns, 8568086 nonzeros
+
+CPU model: AMD Ryzen 7 PRO 4750U with Radeon Graphics, instruction set [SSE2|AVX|AVX2]
+Thread count: 8 physical cores, 16 logical processors, using up to 4 threads
+
+Optimize a model with 57590 rows, 51848 columns and 8568086 nonzeros
+Model fingerprint: 0x808c2420
+Variable types: 0 continuous, 51848 integer (51848 binary)
+Coefficient statistics:
+  Matrix range     [1e+00, 6e+03]
+  Objective range  [8e-03, 8e+01]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [1e+00, 2e+02]
+Presolve removed 0 rows and 0 columns (presolve time = 5s) ...
+Presolve removed 576 rows and 0 columns (presolve time = 10s) ...
+Presolve removed 576 rows and 0 columns (presolve time = 15s) ...
+Presolve removed 576 rows and 0 columns (presolve time = 20s) ...
+Presolve removed 576 rows and 0 columns (presolve time = 25s) ...
+Presolve removed 576 rows and 0 columns (presolve time = 30s) ...
+Presolve removed 576 rows and 0 columns (presolve time = 35s) ...
+Presolve removed 576 rows and 0 columns
+Presolve time: 35.68s
+Presolved: 57014 rows, 51848 columns, 8539302 nonzeros
+Variable types: 0 continuous, 51848 integer (51848 binary)
+Deterministic concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Root barrier log...
+
+
+Barrier performed 0 iterations in 39.43 seconds (51.44 work units)
+Barrier solve interrupted - model solved by another algorithm
+
+Concurrent spin time: 0.13s (can be avoided by choosing Method=3)
+
+Solved with dual simplex
+
+Root relaxation: objective 1.650315e-01, 569 iterations, 2.79 seconds (4.18 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0    0.16503    0  234          -    0.16503      -     -   40s
+     0     0    0.29381    0  294          -    0.29381      -     -   47s
+     0     0    0.29381    0  293          -    0.29381      -     -   48s
+     0     0    0.29381    0  293          -    0.29381      -     -   48s
+     0     0    0.29386    0  297          -    0.29386      -     -   49s
+     0     0  280.00009    0 7745          -  280.00009      -     -   72s
+     0     0  280.00009    0 7738          -  280.00009      -     -   78s
+     0     0  280.00009    0 2115          -  280.00009      -     -  204s
+     0     0  280.00577    0 1983          -  280.00577      -     -  213s
+     0     0  280.00577    0 1895          -  280.00577      -     -  214s
+     0     0          -    0               -  280.00577      -     -  243s
+
+Cutting planes:
+  Gomory: 4
+  Cover: 332
+  Clique: 1616
+  MIR: 685
+  StrongCG: 101
+  GUB cover: 37
+  Zero half: 16
+
+Explored 1 nodes (55699 simplex iterations) in 243.93 seconds (374.61 work units)
+Thread count was 4 (of 16 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound 2.800057669109e+02, gap -
+
+Unable to retrieve attribute 'X'
+

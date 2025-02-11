@@ -366,9 +366,10 @@ class STTVS_Solve:
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
                 ("Threads", 4),       # Nutze 4 Threads
-                ("Heuristics", 0.25),  # Ausgewogene Heuristik
+                ("Heuristics", 0.25),  #  Heuristik
                 ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
                 ("TimeLimit", 3600),  # 1 Stunde Zeitlimit
+                #("MarkowitzTol", 0.25),
                 ("LogFile", self.__log_file),  # Sicherstellen, dass die Log-Datei gespeichert wird
             ],msg=True,
            

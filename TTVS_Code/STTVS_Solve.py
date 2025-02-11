@@ -14,7 +14,7 @@ class STTVS_Solve:
         self.__sttvs = sttvs
         self.__model = pulp.LpProblem("STTVS", pulp.LpMinimize)
         log_filename = f"gurobi_{int(time.time())}.log"
-        self.__log_file = log_filename  # Log-Datei, in der die Ausgabe gespeichert wird
+        self.__log_file = log_filename  # Log file where the output is saved
         self.__trips = []
         self.__directions = []
 
@@ -363,26 +363,27 @@ class STTVS_Solve:
 
     def solve(self):
         '''
+        #For Linux:
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
-                ("Threads", 4),       # Nutze 4 Threads
+                ("Threads", 4),       # Use four threads simultaneously
                 ("Heuristics", 0.25),  #  Heuristik
-                ("MIPFocus", 1),      # Fokus auf schnelle Lösungen
-                ("TimeLimit", 3600),  # 1 Stunde Zeitlimit
+                ("MIPFocus", 1),      # Fokus on quick solutions
+                ("TimeLimit", 3600),  # One hour time limit
                 #("MarkowitzTol", 0.25),
-                ("LogFile", self.__log_file),  # Sicherstellen, dass die Log-Datei gespeichert wird
+                ("LogFile", self.__log_file),  # Ensure that the log files are saved
             ],msg=True,
            
         ))
         '''
-        #Für Mac (die Gurobiversion braucht ein anderes Eingabeformat)
+        #For Mac (the gurobi version needs a different input format)
         self.__model.solve(pulp.GUROBI_CMD(
             options=[
-                "Threads=0",   # Nutze 4 Threads
-                "Heuristics=0.25",  # Ausgewogene Heuristik
-                "MIPFocus=1", # Fokus auf schnelle Lösungen
-                "TimeLimit=3600",   # 1 Stunde Zeitlimit
-                f"LogFile={self.__log_file}",  # Sicherstellen, dass die Log-Datei gespeichert wird
+                "Threads=0",   
+                "Heuristics=0.25",  
+                "MIPFocus=1", 
+                "TimeLimit=3600",   
+                f"LogFile={self.__log_file}",  
             ],msg=True,
         ))
         
@@ -516,28 +517,28 @@ class STTVS_Solve:
             print("The model is unbounded.")
         else:
             print("No solution found within the given constraints.")
-         #Lösche die Log-Datei, nachdem der Gap-Wert extrahiert wurde
+         # Delete the log file after the gap value has been transferred
         if os.path.exists(self.__log_file):
             os.remove(self.__log_file)
             
 
     def extract_gap_from_log(self,log_filename):
-         #Gap-Wert aus der Log-Datei extrahieren
+         # Extract gap value from log file
         try:
             with open(log_filename, "r") as file:
                 log_output = file.read()
                     
-            # Alle Vorkommen des Musters (Zahl vor %) suchen
+            # Find all occurrences of the pattern (number before %)
             gap_matches = re.findall(r"(\d+\.\d+)%", log_output)
             
             if gap_matches:
-                # Letzten Gap-Wert aus der Liste extrahieren
-                gap = float(gap_matches[-1])  # Der Wert vor dem letzten Prozentzeichen
-                return gap  # Gebe den Gap-Wert zurück
+                # Extract the last gap value from the list
+                gap = float(gap_matches[-1])  # The value before the last percent sign
+                return gap  # Return the gap value
             else:
-                return None  # Kein Gap gefunden
+                return None  # No gap found
         except FileNotFoundError:
-                return None  # Log-Datei nicht gefunden
+                return None  # Log file not found
 
     def writeLPFile(self, filename):
         self.__model.writeLP(filename)
